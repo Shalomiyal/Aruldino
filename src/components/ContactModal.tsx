@@ -77,15 +77,21 @@ export const ContactModal = ({ isOpen, onOpenChange, title = 'Contact Front Desk
     setLoading(true);
 
     try {
-      // Save inquiry to database
-      await supabase.from('contact_inquiries').insert([
+      // Save inquiry to database using activity_logs
+      await supabase.from('activity_logs').insert([
         {
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          subject: formData.subject,
-          message: formData.message,
-          status: 'pending'
+          action: 'CONTACT_INQUIRY',
+          user_id: 'system', // Use system user for anonymous inquiries
+          entity_type: 'contact',
+          entity_id: 'inquiry',
+          details: {
+            full_name: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            subject: formData.subject,
+            message: formData.message,
+            status: 'pending'
+          }
         }
       ]);
 

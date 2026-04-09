@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense, lazy } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -7,13 +7,12 @@ import {
   Briefcase, GraduationCap, Loader2
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend
-} from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+// Lazy load chart components
+const ChartComponents = lazy(() => import('./AnalyticsCharts'));
 
 const Analytics = () => {
   const { user, role } = useAuth();
@@ -70,8 +69,6 @@ const Analytics = () => {
     if (user) fetchData();
   }, [user, role]);
 
-  const COLORS = ['#2baec1', '#2e406a', '#2baec1', '#2e406a', '#2baec1', '#2e406a'];
-
   if (loading) {
     return (
       <DashboardLayout>
@@ -111,85 +108,19 @@ const Analytics = () => {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Performance Chart */}
-          <Card className="shadow-premium border-none">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5 text-primary" /> Performance Index
-              </CardTitle>
-              <CardDescription>Average merit points earned per course</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2baec1" />
-                  <XAxis dataKey="subject_name" stroke="#2e406a" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#2e406a" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(43, 174, 193, 0.1)' }}
-                  />
-                  <Bar dataKey="avg_marks" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Attendance Distributions */}
-          <Card className="shadow-premium border-none">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PieChartIcon className="h-5 w-5 text-primary" /> Attendance Distribution
-              </CardTitle>
-              <CardDescription>Engagement rates across different departments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={attendanceStats}
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="attendance_rate"
-                    nameKey="subject_name"
-                  >
-                    {attendanceStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Workload (Admin only) */}
-          {role === 'admin' && (
-            <Card className="shadow-premium border-none lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5 text-primary" /> Faculty Workload
-                </CardTitle>
-                <CardDescription>Subject allocation and student reach per lecturer</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={workloadData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" />
-                    <YAxis dataKey="lecturer_name" type="category" width={100} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="subjects_count" name="Courses" fill="#2baec1" />
-                    <Bar dataKey="total_students" name="Students" fill="#2e406a" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        }>
+          <ChartComponents
+            performanceData={performanceData}
+            attendanceStats={attendanceStats}
+            workloadData={workloadData}
+            summary={summary}
+            role={role || ''}
+          />
+        </Suspense>
       </div>
     </DashboardLayout>
   );

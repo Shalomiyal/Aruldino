@@ -34,16 +34,16 @@ const AdminDashboard = () => {
         <div className="space-y-8">
             {/* Stats Grid with 3D Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard3D title="Total Users" value={stats.users} icon={Users} primaryColor="#ff8c00" secondaryColor="#00b7eb" />
-                <StatCard3D title="Departments" value={stats.depts} icon={Building2} primaryColor="#00b7eb" secondaryColor="#ff8c00" />
-                <StatCard3D title="Active Courses" value={stats.subjects} icon={BookOpen} primaryColor="#ff8c00" secondaryColor="#00b7eb" />
-                <StatCard3D title="System Health" value="100%" icon={ShieldCheck} primaryColor="#10b981" secondaryColor="#059669" />
+                <StatCard3D title="Total Users" value={stats.users} icon={Users} primaryColor="#2baec1" secondaryColor="#2e406a" />
+                <StatCard3D title="Departments" value={stats.depts} icon={Building2} primaryColor="#2e406a" secondaryColor="#2baec1" />
+                <StatCard3D title="Active Courses" value={stats.subjects} icon={BookOpen} primaryColor="#2baec1" secondaryColor="#2e406a" />
+                <StatCard3D title="System Health" value="100%" icon={ShieldCheck} primaryColor="#2baec1" secondaryColor="#2e406a" />
             </div>
 
             {/* Activity & Logins Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2 border border-slate-200 shadow-xl bg-white overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#ff8c00] via-[#00b7eb] to-[#ff8c00]"></div>
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] via-[#2e406a] to-[#2baec1]"></div>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3 text-slate-900">
                             <div className="p-2 rounded-xl gradient-primary shadow-lg">
@@ -62,7 +62,7 @@ const AdminDashboard = () => {
                                     <div className="flex-1">
                                         <p className="text-sm font-semibold text-slate-900">{log.action}</p>
                                         <p className="text-xs text-slate-500">
-                                            <span className="font-medium text-[#00b7eb]">{log.profiles?.full_name || 'Unknown'}</span> • {log.entity_type} • {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            <span className="font-medium text-[#2baec1]">{log.profiles?.full_name || 'Unknown'}</span> • {log.entity_type} • {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
                                 </div>
@@ -73,8 +73,8 @@ const AdminDashboard = () => {
                     </CardContent>
                 </Card>
 
-                <Card className="border border-[#00b7eb]/30 shadow-xl bg-gradient-to-br from-[#00b7eb]/5 to-white overflow-hidden relative">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#00b7eb] to-[#00b7eb]/60"></div>
+                <Card className="border border-[#2baec1]/30 shadow-xl bg-gradient-to-br from-[#2baec1]/5 to-white overflow-hidden relative">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] to-[#2baec1]/60"></div>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3 text-slate-900">
                             <div className="p-2 rounded-xl gradient-secondary shadow-lg">
@@ -85,7 +85,7 @@ const AdminDashboard = () => {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {recentLogins.length > 0 ? recentLogins.map((login: any) => (
-                            <div key={login.id} className="group flex items-center gap-3 p-3 rounded-xl bg-[#00b7eb]/5 border border-[#00b7eb]/20 hover:bg-[#00b7eb]/10 hover:border-[#00b7eb]/40 transition-all duration-300">
+                            <div key={login.id} className="group flex items-center gap-3 p-3 rounded-xl bg-[#2baec1]/5 border border-[#2baec1]/20 hover:bg-[#2baec1]/10 hover:border-[#2baec1]/40 transition-all duration-300">
                                 <div className="h-10 w-10 rounded-xl gradient-secondary flex items-center justify-center text-white shadow-lg">
                                     <LogIn className="h-5 w-5" />
                                 </div>
@@ -106,7 +106,7 @@ const AdminDashboard = () => {
 
             {/* Campus Stats Section */}
             <Card className="border border-slate-200 shadow-xl bg-white overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#ff8c00] via-[#00b7eb] to-[#ff8c00]"></div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] via-[#2e406a] to-[#2baec1]"></div>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-slate-900">
                         <div className="p-2 rounded-xl gradient-primary shadow-lg">
@@ -117,10 +117,10 @@ const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <CampusStatItem label="Total Students" value={stats.users} icon={Users} color="#ff8c00" />
-                        <CampusStatItem label="Departments" value={stats.depts} icon={Building2} color="#00b7eb" />
-                        <CampusStatItem label="Active Subjects" value={stats.subjects} icon={BookOpen} color="#ff8c00" />
-                        <CampusStatItem label="System Uptime" value="99.9%" icon={ShieldCheck} color="#10b981" />
+                        <CampusStatItem label="Total Students" value={stats.users} icon={Users} color="#2baec1" />
+                        <CampusStatItem label="Departments" value={stats.depts} icon={Building2} color="#2e406a" />
+                        <CampusStatItem label="Active Subjects" value={stats.subjects} icon={BookOpen} color="#2baec1" />
+                        <CampusStatItem label="System Uptime" value="99.9%" icon={ShieldCheck} color="#2baec1" />
                     </div>
                 </CardContent>
             </Card>

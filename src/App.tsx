@@ -6,39 +6,48 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
+import { Suspense, lazy } from "react";
+import { Loader2 } from "lucide-react";
 
-// Auth & Public
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Login from "./pages/auth/Login";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import ResetPassword from "./pages/auth/ResetPassword";
+// Auth & Public - Lazy loaded
+const Index = lazy(() => import("./pages/Index"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Login = lazy(() => import("./pages/auth/Login"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
 
-// Modular Imports
-import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile";
-import Subjects from "./modules/academic/Subjects";
-import Timetable from "./modules/academic/Timetable";
-import Attendance from "./modules/attendance/Attendance";
-import Exams from "./modules/academic/Exams";
-import Communication from "./modules/communication/Communication";
-import AuditLogs from "./modules/admin/AuditLogs";
-import PermissionControl from "./modules/admin/PermissionControl";
+// Modular Imports - Lazy loaded
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Subjects = lazy(() => import("./modules/academic/Subjects"));
+const Timetable = lazy(() => import("./modules/academic/Timetable"));
+const Attendance = lazy(() => import("./modules/attendance/Attendance"));
+const Exams = lazy(() => import("./modules/academic/Exams"));
+const Communication = lazy(() => import("./modules/communication/Communication"));
+const AuditLogs = lazy(() => import("./modules/admin/AuditLogs"));
+const PermissionControl = lazy(() => import("./modules/admin/PermissionControl"));
 
-import Assignments from "./pages/Assignments";
-import Groups from "./pages/Groups";
-import Events from "./pages/Events";
-import Analytics from "./pages/Analytics";
+const Assignments = lazy(() => import("./pages/Assignments"));
+const Groups = lazy(() => import("./pages/Groups"));
+const Events = lazy(() => import("./pages/Events"));
+const Analytics = lazy(() => import("./pages/Analytics"));
 
-// Admin Specific
-import UserManagement from "./modules/admin/UserManagement";
-import Batches from "./modules/admin/Batches";
-import DepartmentManagement from "./modules/admin/DepartmentManagement";
-import Grading from "./modules/academic/Grading";
-import Enrollments from "./modules/academic/Enrollments";
-import FacultyAssignment from "./modules/admin/FacultyAssignment";
-import MyGrades from "./modules/student/MyGrades";
-import SystemAdmin from "./modules/admin/SystemAdmin";
+// Admin Specific - Lazy loaded
+const UserManagement = lazy(() => import("./modules/admin/UserManagement"));
+const Batches = lazy(() => import("./modules/admin/Batches"));
+const DepartmentManagement = lazy(() => import("./modules/admin/DepartmentManagement"));
+const Grading = lazy(() => import("./modules/academic/Grading"));
+const Enrollments = lazy(() => import("./modules/academic/Enrollments"));
+const FacultyAssignment = lazy(() => import("./modules/admin/FacultyAssignment"));
+const MyGrades = lazy(() => import("./modules/student/MyGrades"));
+const SystemAdmin = lazy(() => import("./modules/admin/SystemAdmin"));
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex h-screen w-full items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 
 const queryClient = new QueryClient();
@@ -51,45 +60,45 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <GlobalErrorBoundary>
-            <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Campus Control Plane */}
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/subjects" element={<ProtectedRoute><Subjects /></ProtectedRoute>} />
-            <Route path="/timetable" element={<ProtectedRoute><Timetable /></ProtectedRoute>} />
-            <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+                {/* Campus Control Plane */}
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                <Route path="/subjects" element={<ProtectedRoute><Subjects /></ProtectedRoute>} />
+                <Route path="/timetable" element={<ProtectedRoute><Timetable /></ProtectedRoute>} />
+                <Route path="/attendance" element={<ProtectedRoute allowedRoles={['lecturer']}><Attendance /></ProtectedRoute>} />
+                <Route path="/assignments" element={<ProtectedRoute allowedRoles={['lecturer']}><Assignments /></ProtectedRoute>} />
+                <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+                <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
 
-            <Route path="/assignments" element={<ProtectedRoute><Assignments /></ProtectedRoute>} />
-            <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
-            <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+                {/* Academic Capabilities */}
+                <Route path="/analytics" element={<ProtectedRoute allowedRoles={['superadmin', 'admin', 'lecturer']} requiredPermission="view:reports"><Analytics /></ProtectedRoute>} />
 
-            {/* Academic Capabilities */}
-            <Route path="/analytics" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="view:reports"><Analytics /></ProtectedRoute>} />
+                {/* Admin Control */}
+                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['superadmin', 'admin', 'lecturer']} requiredPermission="manage:users"><UserManagement /></ProtectedRoute>} />
+                <Route path="/admin/batches" element={<ProtectedRoute allowedRoles={['superadmin', 'admin']}><Batches /></ProtectedRoute>} />
+                <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={['superadmin', 'admin', 'lecturer']} requiredPermission="manage:departments"><DepartmentManagement /></ProtectedRoute>} />
 
-            {/* Admin Control */}
-            <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:users"><UserManagement /></ProtectedRoute>} />
-            <Route path="/admin/batches" element={<ProtectedRoute allowedRoles={['admin']}><Batches /></ProtectedRoute>} />
-            <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:departments"><DepartmentManagement /></ProtectedRoute>} />
+                {/* Academic & Grading Logic */}
+                <Route path="/grading" element={<ProtectedRoute allowedRoles={['lecturer']} requiredPermission="manage:grading"><Grading /></ProtectedRoute>} />
+                <Route path="/results" element={<ProtectedRoute allowedRoles={['student']}><MyGrades /></ProtectedRoute>} />
+                <Route path="/exams" element={<ProtectedRoute allowedRoles={['lecturer']}><Exams /></ProtectedRoute>} />
+                <Route path="/communication" element={<ProtectedRoute><Communication /></ProtectedRoute>} />
+                <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={['superadmin','admin', 'lecturer']} requiredPermission="view:audit_logs"><AuditLogs /></ProtectedRoute>} />
+                <Route path="/admin/security" element={<ProtectedRoute allowedRoles={['superadmin','admin', 'lecturer']} requiredPermission="manage:security"><PermissionControl /></ProtectedRoute>} />
+                <Route path="/admin/enrollments" element={<ProtectedRoute allowedRoles={['superadmin','admin']}><Enrollments /></ProtectedRoute>} />
+                <Route path="/admin/faculty" element={<ProtectedRoute allowedRoles={['superadmin','admin']}><FacultyAssignment /></ProtectedRoute>} />
+                <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['superadmin','admin']}><SystemAdmin /></ProtectedRoute>} />
 
-            {/* Academic & Grading Logic */}
-            <Route path="/grading" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:grading"><Grading /></ProtectedRoute>} />
-            <Route path="/results" element={<ProtectedRoute allowedRoles={['student']}><MyGrades /></ProtectedRoute>} />
-            <Route path="/exams" element={<ProtectedRoute><Exams /></ProtectedRoute>} />
-            <Route path="/communication" element={<ProtectedRoute><Communication /></ProtectedRoute>} />
-            <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="view:audit_logs"><AuditLogs /></ProtectedRoute>} />
-            <Route path="/admin/security" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:security"><PermissionControl /></ProtectedRoute>} />
-            <Route path="/admin/enrollments" element={<ProtectedRoute allowedRoles={['admin']}><Enrollments /></ProtectedRoute>} />
-            <Route path="/admin/faculty" element={<ProtectedRoute allowedRoles={['admin']}><FacultyAssignment /></ProtectedRoute>} />
-            <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['admin']}><SystemAdmin /></ProtectedRoute>} />
-
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </GlobalErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
