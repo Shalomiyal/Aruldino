@@ -63,7 +63,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login');
   };
 
   const initials = profile?.full_name

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { GraduationCap, Loader2, Mail, Lock, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
+import { GraduationCap, Loader2, Mail, Lock, ArrowRight, Sparkles, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
@@ -47,6 +47,15 @@ const Login = () => {
       <div className="absolute inset-0 bg-dot-pattern opacity-50"></div>
 
       <div className="relative z-10 w-full max-w-lg animate-slide-up p-4">
+        {/* Back Button */}
+        <div className="absolute top-0 left-4">
+          <Link to="/">
+            <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900 group">
+              <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
         {/* Logo Section */}
         <div className="mb-8 text-center">
           <div className="relative inline-block mb-4">
