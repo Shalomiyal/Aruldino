@@ -116,7 +116,7 @@ const SystemAdmin = () => {
     const getSeverityColor = (severity: string) => {
         switch (severity) {
             case 'critical': return 'bg-red-500';
-            case 'high': return 'bg-orange-500';
+            case 'high': return 'bg-secondary';
             case 'medium': return 'bg-yellow-500';
             case 'low': return 'bg-blue-500';
             default: return 'bg-gray-500';
@@ -357,7 +357,7 @@ const SystemAdmin = () => {
 
             {/* System Errors Panel */}
             <Card className="border-0 shadow-2xl bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-xl overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500"></div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-primary to-primary"></div>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-white">
                         <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-500/60 shadow-lg">

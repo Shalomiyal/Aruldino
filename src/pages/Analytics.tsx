@@ -70,7 +70,7 @@ const Analytics = () => {
     if (user) fetchData();
   }, [user, role]);
 
-  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#0088FE', '#00C49F', '#FFBB28'];
+  const COLORS = ['#2baec1', '#2e406a', '#2baec1', '#2e406a', '#2baec1', '#2e406a'];
 
   if (loading) {
     return (
@@ -123,11 +123,11 @@ const Analytics = () => {
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="subject_name" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2baec1" />
+                  <XAxis dataKey="subject_name" stroke="#2e406a" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#2e406a" fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(43, 174, 193, 0.1)' }}
                   />
                   <Bar dataKey="avg_marks" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -182,8 +182,8 @@ const Analytics = () => {
                     <YAxis dataKey="lecturer_name" type="category" width={100} />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="subjects_count" name="Courses" fill="#8884d8" />
-                    <Bar dataKey="total_students" name="Students" fill="#82ca9d" />
+                    <Bar dataKey="subjects_count" name="Courses" fill="#2baec1" />
+                    <Bar dataKey="total_students" name="Students" fill="#2e406a" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

@@ -66,7 +66,7 @@ const LecturerDashboard = () => {
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <LecStatCard title="Assigned Subjects" value={stats.subjects} icon={BookOpen} color="bg-blue-500" />
-                <LecStatCard title="To Grade" value={stats.pendingGrading} icon={ClipboardCheck} color="bg-orange-500" />
+                <LecStatCard title="To Grade" value={stats.pendingGrading} icon={ClipboardCheck} color="bg-primary" />
                 <LecStatCard title="Total Students" value={stats.totalStudents} icon={GraduationCap} color="bg-green-500" />
             </div>
 

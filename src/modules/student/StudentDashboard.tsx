@@ -184,7 +184,7 @@ const ResultItem = ({ subject, grade, status }: any) => (
             <span className="font-bold text-sm">{subject}</span>
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide">{status}</span>
         </div>
-        <Badge className={grade === 'A' ? 'bg-green-500 hover:bg-green-600' : 'bg-primary'}>{grade}</Badge>
+        <Badge className={grade === 'A' ? 'bg-primary hover:bg-primary/80' : 'bg-secondary hover:bg-secondary/80'}>{grade}</Badge>
     </div>
 );
 

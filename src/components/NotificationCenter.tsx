@@ -122,7 +122,7 @@ const NotificationCenter = () => {
         switch (type) {
             case 'chat_request': return <MessageSquare className="h-4 w-4 text-primary" />;
             case 'grade_posted': return <GraduationCap className="h-4 w-4 text-green-500" />;
-            case 'announcement': return <Bell className="h-4 w-4 text-orange-500" />;
+            case 'announcement': return <Bell className="h-4 w-4 text-primary" />;
             default: return <ShieldAlert className="h-4 w-4 text-muted-foreground" />;
         }
     };

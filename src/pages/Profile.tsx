@@ -129,7 +129,7 @@ const Profile = () => {
                                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground leading-none mb-1">Department</span><span>{deptName}</span></div>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-foreground/80">
-                                        <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600"><Layers className="h-4 w-4" /></div>
+                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><Layers className="h-4 w-4" /></div>
                                         <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-muted-foreground leading-none mb-1">Batch</span><span>{(profile as any)?.batch || 'General'}</span></div>
                                     </div>
                                 </div>
