@@ -513,17 +513,17 @@ export type Database = {
       user_roles: {
         Row: {
           id: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"] | 'superadmin'
           user_id: string
         }
         Insert: {
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | 'superadmin'
           user_id: string
         }
         Update: {
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["public"]["Enums"]["app_role"] | 'superadmin'
           user_id?: string
         }
         Relationships: []
@@ -544,9 +544,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      mark_chat_as_read: {
+        Args: {
+          chat_id: string
+          is_group: boolean
+        }
+        Returns: void
+      }
     }
     Enums: {
-      app_role: "admin" | "lecturer" | "student"
+      app_role: "admin" | "lecturer" | "student" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -674,7 +681,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "lecturer", "student"],
+      app_role: ["admin", "lecturer", "student", "superadmin"],
     },
   },
 } as const

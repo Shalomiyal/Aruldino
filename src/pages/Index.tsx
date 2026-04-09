@@ -2,16 +2,18 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { ContactModal } from '@/components/ContactModal';
 import {
   GraduationCap, Code, Database, ArrowRight, CheckCircle,
   MapPin, Calendar, Users, Award, TrendingUp, Building2,
-  Star, Zap, BookOpen, Lightbulb, Briefcase, Globe, Shield, Sparkles
+  Star, Zap, BookOpen, Lightbulb, Briefcase, Globe, Shield, Sparkles, LogOut
 } from 'lucide-react';
 import campusImage from '@/assets/images.jpg';
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   const programs = [
@@ -109,11 +111,35 @@ const Index = () => {
             </div>
             <div className="flex items-center gap-3">
               {user ? (
-                <Link to="/dashboard">
-                  <Button className="bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20">
-                    Dashboard
+                <div className="flex items-center gap-3">
+                  <Link to="/dashboard">
+                    <Button className="bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    onClick={async () => {
+                      try {
+                        await signOut();
+                        toast({
+                          title: "Signed Out",
+                          description: "You have been logged out successfully.",
+                        });
+                      } catch (error) {
+                        toast({
+                          title: "Sign out failed",
+                          description: "An error occurred while signing out.",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    className="text-slate-600 hover:text-red-600 hover:bg-red-50 transition-all duration-300"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
                   </Button>
-                </Link>
+                </div>
               ) : (
                 <>
                   <Link to="/login">

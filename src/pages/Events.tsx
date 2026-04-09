@@ -141,7 +141,7 @@ const Events = () => {
             <p className="text-muted-foreground">Stay updated with activities, workshops, and gatherings</p>
           </div>
 
-          {role === 'admin' && (
+          {(role === 'admin' || role === 'lecturer') && (
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button className="gradient-primary">
@@ -283,7 +283,7 @@ const Events = () => {
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-xl font-heading leading-tight">{event.title}</CardTitle>
-                    {role === 'admin' && (
+                    {(role === 'admin' || (role === 'lecturer' && event.created_by === user?.id)) && (
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditEvent(event)}>
                           <Edit2 className="h-3.5 w-3.5" />

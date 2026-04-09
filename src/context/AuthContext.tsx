@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const hasPermission = (permission: string) => {
-    return role === 'admin' || permissions.includes(permission);
+    return role === 'admin' || role === 'superadmin' || permissions.includes(permission);
   };
 
   return (

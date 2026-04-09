@@ -41,8 +41,12 @@ const Enrollments = () => {
         setLoading(true);
         try {
             // 1. Fetch Subjects
-            const { data: subData } = await (supabase.from('subjects' as any).select('id, name, code') as any);
+            let subQ = supabase.from('subjects' as any).select('id, name, code');
+            if (role === 'lecturer') subQ = subQ.eq('lecturer_id', user?.id);
+            
+            const { data: subData } = await (subQ as any);
             setSubjects(subData || []);
+            const mySubIds = subData?.map((s: any) => s.id) || [];
 
             // 2. Fetch Students
             const { data: stuData } = await supabase.from('user_roles').select('user_id').eq('role', 'student');
@@ -53,8 +57,14 @@ const Enrollments = () => {
             }
 
             // 3. Fetch Enrollments
-            const { data: enrollData } = await (supabase.from('enrollments' as any)
-                .select('*, profiles:student_id(full_name, email, batch), subjects(name, code)') as any);
+            let enrollQ = supabase.from('enrollments' as any)
+                .select('*, profiles:student_id(full_name, email, batch), subjects(name, code)');
+            
+            if (role === 'lecturer') {
+                enrollQ = enrollQ.in('subject_id', mySubIds);
+            }
+            
+            const { data: enrollData } = await (enrollQ as any);
             setEnrollments(enrollData || []);
 
         } catch (error: any) {
@@ -117,47 +127,49 @@ const Enrollments = () => {
                         <p className="text-muted-foreground">Manage student access to subjects and academic modules</p>
                     </div>
 
-                    <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="gradient-primary"><Plus className="mr-2 h-4 w-4" /> New Enrollment</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Enroll Student</DialogTitle>
-                                <DialogDescription>Assign a student to a specific course subject.</DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleEnroll} className="space-y-4 py-2">
-                                <div className="space-y-2">
-                                    <Label>Select Student</Label>
-                                    <Select value={enrollForm.studentId} onValueChange={v => setEnrollForm({ ...enrollForm, studentId: v })}>
-                                        <SelectTrigger><SelectValue placeholder="Choose student" /></SelectTrigger>
-                                        <SelectContent>
-                                            {students.map(s => (
-                                                <SelectItem key={s.user_id} value={s.user_id}>{s.full_name} ({s.email})</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Select Subject</Label>
-                                    <Select value={enrollForm.subjectId} onValueChange={v => setEnrollForm({ ...enrollForm, subjectId: v })}>
-                                        <SelectTrigger><SelectValue placeholder="Choose subject" /></SelectTrigger>
-                                        <SelectContent>
-                                            {subjects.map(s => (
-                                                <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <DialogFooter>
-                                    <Button type="submit" className="w-full gradient-primary" disabled={actionLoading}>
-                                        {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Complete Enrollment
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    {role === 'admin' && (
+                        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="gradient-primary"><Plus className="mr-2 h-4 w-4" /> New Enrollment</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Enroll Student</DialogTitle>
+                                    <DialogDescription>Assign a student to a specific course subject.</DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleEnroll} className="space-y-4 py-2">
+                                    <div className="space-y-2">
+                                        <Label>Select Student</Label>
+                                        <Select value={enrollForm.studentId} onValueChange={v => setEnrollForm({ ...enrollForm, studentId: v })}>
+                                            <SelectTrigger><SelectValue placeholder="Choose student" /></SelectTrigger>
+                                            <SelectContent>
+                                                {students.map(s => (
+                                                    <SelectItem key={s.user_id} value={s.user_id}>{s.full_name} ({s.email})</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Select Subject</Label>
+                                        <Select value={enrollForm.subjectId} onValueChange={v => setEnrollForm({ ...enrollForm, subjectId: v })}>
+                                            <SelectTrigger><SelectValue placeholder="Choose subject" /></SelectTrigger>
+                                            <SelectContent>
+                                                {subjects.map(s => (
+                                                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="submit" className="w-full gradient-primary" disabled={actionLoading}>
+                                            {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Complete Enrollment
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4">
@@ -231,14 +243,16 @@ const Enrollments = () => {
                                                 {new Date(e.enrolled_at).toLocaleDateString()}
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                                    onClick={() => handleUnenroll(e.id)}
-                                                >
-                                                    <UserMinus className="h-4 w-4" />
-                                                </Button>
+                                                {role === 'admin' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                                        onClick={() => handleUnenroll(e.id)}
+                                                    >
+                                                        <UserMinus className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}

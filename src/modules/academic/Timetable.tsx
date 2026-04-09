@@ -274,7 +274,7 @@ const Timetable = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {role === 'admin' && (
+                        {(role === 'admin' || role === 'lecturer') && (
                             <Dialog open={dialogOpen} onOpenChange={(open) => {
                                 setDialogOpen(open);
                                 if (!open) resetForm();
@@ -483,9 +483,9 @@ const Timetable = () => {
                                             <CardContent className="p-3">
                                                 <div className="flex flex-col gap-2">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-[10px] font-black text-primary uppercase">{slot.subjects.code}</span>
-                                                        {(role === 'admin') && (
-                                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                  <span className="text-[10px] font-black text-primary uppercase">{slot.subjects.code}</span>
+                                                  {(role === 'admin' || (role === 'lecturer' && slot.subjects.lecturer_id === user?.id)) && (
+                                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <button
                                                                     onClick={() => handleEditSlot(slot)}
                                                                     className="text-primary hover:text-primary/70"

@@ -26,26 +26,26 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Subjects', path: '/subjects', icon: BookOpen },
-  { label: 'Timetable', path: '/timetable', icon: CalendarIcon },
+  { label: 'Subjects', path: '/subjects', icon: BookOpen, roles: ['admin', 'lecturer'] },
+  { label: 'Timetable', path: '/timetable', icon: CalendarIcon, roles: ['admin', 'lecturer'] },
   { label: 'Exams', path: '/exams', icon: Trophy, roles: ['lecturer'] },
   { label: 'Common Room', path: '/communication', icon: Bell },
   { label: 'Attendance', path: '/attendance', icon: ClipboardCheck, roles: ['lecturer'] },
 
   { label: 'Assignments', path: '/assignments', icon: FileText, roles: ['lecturer'] },
-  { label: 'Academy Events', path: '/events', icon: CalendarIcon },
+  { label: 'Academy Events', path: '/events', icon: CalendarIcon, roles: ['admin', 'lecturer'] },
   { label: 'Social Hub', path: '/groups', icon: MessageSquare },
 
-  { label: 'Grading', path: '/grading', icon: Calculator, roles: ['lecturer'], permission: 'manage:grading' },
+  { label: 'Grading', path: '/grading', icon: Calculator, roles: ['lecturer'] },
   { label: 'My Results', path: '/results', icon: Award, roles: ['student'] },
-  { label: 'Departments', path: '/admin/departments', icon: BookOpenCheck, roles: ['admin'], permission: 'manage:departments' },
-  { label: 'Manage Batches', path: '/admin/batches', icon: Layers, roles: ['admin'] },
-  { label: 'Enrollments', path: '/admin/enrollments', icon: UserPlus, roles: ['admin'] },
+  { label: 'Departments', path: '/admin/departments', icon: BookOpenCheck, roles: ['admin', 'lecturer'] },
+  { label: 'Manage Batches', path: '/admin/batches', icon: Layers, roles: ['admin', 'lecturer'] },
+  { label: 'Enrollments', path: '/admin/enrollments', icon: UserPlus, roles: ['admin', 'lecturer'] },
   { label: 'Users', path: '/admin/users', icon: Settings, roles: ['admin', 'lecturer'], permission: 'manage:users' },
   { label: 'Audit Logs', path: '/admin/audit', icon: Shield, roles: ['admin', 'lecturer'], permission: 'view:audit_logs' },
   { label: 'Security', path: '/admin/security', icon: ShieldCheck, roles: ['admin', 'lecturer'], permission: 'manage:security' },
   { label: 'System Admin', path: '/admin/system', icon: Shield, roles: ['admin'] },
-  { label: 'Reports', path: '/analytics', icon: BarChart3, roles: ['admin', 'lecturer'], permission: 'view:reports' },
+  { label: 'Reports', path: '/analytics', icon: BarChart3, roles: ['admin', 'lecturer'] },
 ];
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -56,7 +56,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const [activeItem, setActiveItem] = useState<string>('');
 
   const filteredNav = navItems.filter(item => {
-    const hasRole = !item.roles || (role && item.roles.includes(role));
+    const hasRole = !item.roles || (role && (item.roles.includes(role) || (role === 'superadmin' && item.roles.includes('admin'))));
     const hasPerm = !item.permission || hasPermission(item.permission);
     return hasRole && hasPerm;
   });
