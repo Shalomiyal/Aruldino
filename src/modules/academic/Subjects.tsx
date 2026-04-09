@@ -182,7 +182,7 @@ const Subjects = () => {
                                 <Button className="gradient-primary"><Plus className="mr-2 h-4 w-4" /> New Subject</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[500px]">
-                                <DialogHeader><DialogTitle>{editingSubject ? 'Modify Enterprise Course' : 'Create Enterprise Course'}</DialogTitle></DialogHeader>
+                                <DialogHeader><DialogTitle>{editingSubject ? 'Modify Campus Course' : 'Create Campus Course'}</DialogTitle></DialogHeader>
                                 <form onSubmit={handleSave} className="space-y-4 py-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">

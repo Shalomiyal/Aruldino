@@ -29,7 +29,7 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="animate-fade-in">
         <h1 className="text-2xl font-black font-heading tracking-tight mb-2 underline decoration-primary decoration-4 underline-offset-4">
-          Enterprise Overview
+          Campus Overview
         </h1>
         <p className="text-muted-foreground mb-8">Accessing SAMS Control Plane as <span className="text-primary font-bold uppercase">{role}</span></p>
 

@@ -44,6 +44,7 @@ const navItems: NavItem[] = [
   { label: 'Users', path: '/admin/users', icon: Settings, roles: ['admin', 'lecturer'], permission: 'manage:users' },
   { label: 'Audit Logs', path: '/admin/audit', icon: Shield, roles: ['admin', 'lecturer'], permission: 'view:audit_logs' },
   { label: 'Security', path: '/admin/security', icon: ShieldCheck, roles: ['admin', 'lecturer'], permission: 'manage:security' },
+  { label: 'System Admin', path: '/admin/system', icon: Shield, roles: ['admin'] },
   { label: 'Reports', path: '/analytics', icon: BarChart3, roles: ['admin', 'lecturer'], permission: 'view:reports' },
 ];
 

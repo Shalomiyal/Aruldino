@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 
 // Auth & Public
 import Index from "./pages/Index";
@@ -37,6 +38,7 @@ import Grading from "./modules/academic/Grading";
 import Enrollments from "./modules/academic/Enrollments";
 import FacultyAssignment from "./modules/admin/FacultyAssignment";
 import MyGrades from "./modules/student/MyGrades";
+import SystemAdmin from "./modules/admin/SystemAdmin";
 
 
 const queryClient = new QueryClient();
@@ -48,13 +50,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
+          <GlobalErrorBoundary>
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Enterprise Control Plane */}
+            {/* Campus Control Plane */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/subjects" element={<ProtectedRoute><Subjects /></ProtectedRoute>} />
@@ -65,10 +68,10 @@ const App = () => (
             <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
 
-            {/* Restricted Capabilities */}
+            {/* Academic Capabilities */}
             <Route path="/analytics" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="view:reports"><Analytics /></ProtectedRoute>} />
 
-            {/* Admin Exclusive Control */}
+            {/* Admin Control */}
             <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:users"><UserManagement /></ProtectedRoute>} />
             <Route path="/admin/batches" element={<ProtectedRoute allowedRoles={['admin']}><Batches /></ProtectedRoute>} />
             <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:departments"><DepartmentManagement /></ProtectedRoute>} />
@@ -82,10 +85,12 @@ const App = () => (
             <Route path="/admin/security" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:security"><PermissionControl /></ProtectedRoute>} />
             <Route path="/admin/enrollments" element={<ProtectedRoute allowedRoles={['admin']}><Enrollments /></ProtectedRoute>} />
             <Route path="/admin/faculty" element={<ProtectedRoute allowedRoles={['admin']}><FacultyAssignment /></ProtectedRoute>} />
+            <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['admin']}><SystemAdmin /></ProtectedRoute>} />
 
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </GlobalErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

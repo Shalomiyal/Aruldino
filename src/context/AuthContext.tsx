@@ -76,6 +76,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          await (supabase.from('activity_logs') as any).insert([{
+            user_id: session.user.id,
+            action: 'LOGIN',
+            entity_type: 'auth',
+            created_at: new Date().toISOString()
+          }] as any);
           setTimeout(() => fetchUserData(session.user.id), 0);
         } else {
           setProfile(null);
