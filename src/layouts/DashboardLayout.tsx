@@ -43,9 +43,9 @@ const navItems: NavItem[] = [
   { label: 'Common Room', path: '/communication', icon: Bell, roles: ['admin', 'lecturer', 'student'] },
   { label: 'Social Hub', path: '/groups', icon: MessageSquare, roles: ['admin', 'lecturer', 'student'] },
 
-  { label: 'Departments', path: '/admin/departments', icon: BookOpenCheck, roles: ['admin', 'lecturer'] },
-  { label: 'Manage Batches', path: '/admin/batches', icon: Layers, roles: ['admin', 'lecturer'] },
-  { label: 'Enrollments', path: '/admin/enrollments', icon: UserPlus, roles: ['admin', 'lecturer'] },
+  { label: 'Departments', path: '/admin/departments', icon: BookOpenCheck, roles: ['admin'] },
+  { label: 'Manage Batches', path: '/admin/batches', icon: Layers, roles: ['admin'] },
+  { label: 'Enrollments', path: '/admin/enrollments', icon: UserPlus, roles: ['admin'] },
   { label: 'Users', path: '/admin/users', icon: Settings, roles: ['admin', 'lecturer'], permission: 'manage:users' },
   { label: 'Security', path: '/admin/security', icon: ShieldCheck, roles: ['admin', 'lecturer'], permission: 'manage:security' },
   { label: 'Reports', path: '/analytics', icon: BarChart3, roles: ['admin', 'lecturer'], permission: 'view:reports' },
