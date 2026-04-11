@@ -22,6 +22,7 @@ const Timetable = () => {
     const [loading, setLoading] = useState(true);
     const [timetable, setTimetable] = useState<any[]>([]);
     const [subjects, setSubjects] = useState<any[]>([]);
+    const [filteredSubjects, setFilteredSubjects] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [batches, setBatches] = useState<any[]>([]);
 
@@ -81,7 +82,7 @@ const Timetable = () => {
 
             // 2. Fetch Subjects & Depts for Admin/Lecturer
             if (role === 'admin' || role === 'lecturer') {
-                let subQ = supabase.from('subjects').select('id, name, code');
+                let subQ = supabase.from('subjects').select('id, name, code, department_id');
                 if (role === 'lecturer') subQ = subQ.eq('lecturer_id', user?.id);
 
                 const [subRes, deptRes, batchRes] = await Promise.all([
@@ -90,6 +91,7 @@ const Timetable = () => {
                     (supabase.from('batches' as any).select('name') as any)
                 ]);
                 setSubjects(subRes.data || []);
+                setFilteredSubjects(subRes.data || []);
                 setDepartments(deptRes.data || []);
                 setBatches(batchRes.data || []);
             }
@@ -103,6 +105,16 @@ const Timetable = () => {
     useEffect(() => {
         fetchData();
     }, [selectedDept, selectedBatch, profile]);
+
+    // Filter subjects when department changes in form
+    useEffect(() => {
+        if (!form.department_id || form.department_id === 'none') {
+            setFilteredSubjects(subjects);
+        } else {
+            const filtered = subjects.filter(s => s.department_id === form.department_id);
+            setFilteredSubjects(filtered);
+        }
+    }, [form.department_id, subjects]);
 
     const handleImportImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -301,7 +313,13 @@ const Timetable = () => {
                                             <Select value={form.subject_id} onValueChange={v => setForm({ ...form, subject_id: v })} required>
                                                 <SelectTrigger><SelectValue placeholder="Select Course" /></SelectTrigger>
                                                 <SelectContent>
-                                                    {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>)}
+                                                    {filteredSubjects.length === 0 ? (
+                                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                                            Select a department first
+                                                        </div>
+                                                    ) : (
+                                                        filteredSubjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>)
+                                                    )}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -359,43 +377,6 @@ const Timetable = () => {
                                 </DialogContent>
                             </Dialog>
                         )}
-
-                        <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-                            <DialogContent className="sm:max-w-[600px]">
-                                <DialogHeader>
-                                    <DialogTitle className="flex items-center gap-2">
-                                        <Sparkles className="h-5 w-5 text-primary" /> Review AI Extraction
-                                    </DialogTitle>
-                                    <DialogDescription>
-                                        We found the following slots in your timetable photo.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <ScrollArea className="h-[400px] mt-4 rounded-xl border p-4 bg-muted/30">
-                                    <div className="space-y-3">
-                                        {scannedSlots.map((slot, i) => (
-                                            <div key={i} className="bg-background rounded-lg p-3 border shadow-sm flex items-center justify-between">
-                                                <div>
-                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest">{DAYS[slot.day_of_week]}</p>
-                                                    <h5 className="font-bold text-sm">{slot.subject}</h5>
-                                                    <div className="flex items-center gap-3 mt-1 opacity-60">
-                                                        <span className="flex items-center gap-1 text-[10px]"><Clock className="h-3 w-3" /> {slot.start_time} - {slot.end_time}</span>
-                                                        <span className="flex items-center gap-1 text-[10px]"><MapPin className="h-3 w-3" /> {slot.room}</span>
-                                                    </div>
-                                                </div>
-                                                <Badge variant="outline" className="text-[9px] uppercase">Detected</Badge>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </ScrollArea>
-                                <DialogFooter className="mt-4">
-                                    <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Discard</Button>
-                                    <Button className="gradient-primary flex-1 h-11" onClick={handleBulkSave} disabled={isSaving}>
-                                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        IMPORT ALL {scannedSlots.length} SLOTS
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
                     </div>
                 </div>
 
@@ -429,38 +410,6 @@ const Timetable = () => {
                                         </Select>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 border-l border-primary/10 pl-6">
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-xs font-bold text-primary flex items-center justify-end gap-1.5 uppercase tracking-wider">
-                                        <Sparkles className="h-3 w-3" /> Bulk AI Import
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground">Scan photo to auto-sync week</p>
-                                </div>
-                                <input
-                                    type="file"
-                                    id="bulk-timetable-upload"
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={handleImportImage}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className={`gradient-primary text-white border-none h-11 px-6 shadow-lg shadow-primary/20 hover:scale-105 transition-all ${(!selectedBatch || selectedDept === 'none') ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
-                                    onClick={() => {
-                                        if (selectedDept === 'none' || !selectedBatch) {
-                                            toast({ title: 'Selection Required', description: 'Please select a Department and Batch before syncing.', variant: 'destructive' });
-                                            return;
-                                        }
-                                        document.getElementById('bulk-timetable-upload')?.click();
-                                    }}
-                                    disabled={isParsing}
-                                >
-                                    {isParsing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
-                                    <span className="font-bold tracking-tight">SYNC FULL SCHEDULING</span>
-                                </Button>
                             </div>
                         </CardContent>
                     </Card>

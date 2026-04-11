@@ -54,6 +54,29 @@ const Batches = () => {
     const handleSaveBatch = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsCreating(true);
+
+        // Validate batch name - min 10 characters
+        if (newName.length < 10) {
+            toast({ title: 'Invalid batch name', description: 'Batch name must be at least 10 characters.', variant: 'destructive' });
+            setIsCreating(false);
+            return;
+        }
+
+        // Validate academic year format - 2024/25
+        const yearPattern = /^\d{4}\/\d{2}$/;
+        if (!yearPattern.test(newYear)) {
+            toast({ title: 'Invalid academic year', description: 'Format should be 2024/25 (4 digits + slash + 2 digits).', variant: 'destructive' });
+            setIsCreating(false);
+            return;
+        }
+
+        // Validate description - min 10 characters if provided
+        if (newDesc.length > 0 && newDesc.length < 10) {
+            toast({ title: 'Invalid description', description: 'Description must be at least 10 characters.', variant: 'destructive' });
+            setIsCreating(false);
+            return;
+        }
+
         try {
             const data = {
                 name: newName,
@@ -134,16 +157,16 @@ const Batches = () => {
                             <form onSubmit={handleSaveBatch}>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="name">Batch Name</Label>
-                                        <Input id="name" placeholder="e.g. Computer Science 2024-A" value={newName} onChange={(e) => setNewName(e.target.value)} required />
+                                        <Label htmlFor="name">Batch Name <span className="text-[10px] text-muted-foreground">(min 10 chars)</span></Label>
+                                        <Input id="name" placeholder="e.g. Computer Science 2024-A" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={50} required />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="year">Academic Year / Session</Label>
-                                        <Input id="year" placeholder="e.g. 2024/25" value={newYear} onChange={(e) => setNewYear(e.target.value)} required />
+                                        <Label htmlFor="year">Academic Year <span className="text-[10px] text-muted-foreground">(2024/25)</span></Label>
+                                        <Input id="year" placeholder="e.g. 2024/25" value={newYear} onChange={(e) => setNewYear(e.target.value)} maxLength={7} required />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="desc">Description (Optional)</Label>
-                                        <Input id="desc" placeholder="Brief details about this batch" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+                                        <Label htmlFor="desc">Description <span className="text-[10px] text-muted-foreground">(min 10 chars, optional)</span></Label>
+                                        <Input id="desc" placeholder="Brief details about this batch" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} maxLength={200} />
                                     </div>
                                 </div>
                                 <DialogFooter>

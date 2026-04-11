@@ -42,7 +42,21 @@ const Communication = () => {
             // 1. Fetch relevant subjects
             let subQuery = supabase.from('subjects').select('id, name, code');
             if (role === 'lecturer') subQuery = subQuery.eq('lecturer_id', user?.id);
-            const { data: subs } = await subQuery;
+            
+            let subs;
+            if (role === 'student') {
+                const { data: enrolls } = await supabase.from('enrollments').select('subject_id').eq('student_id', user?.id);
+                const enrolledIds = enrolls?.map(e => e.subject_id) || [];
+                if (enrolledIds.length > 0) {
+                    const { data: studentSubs } = await supabase.from('subjects').select('id, name, code').in('id', enrolledIds);
+                    subs = studentSubs || [];
+                } else {
+                    subs = [];
+                }
+            } else {
+                const { data } = await subQuery;
+                subs = data || [];
+            }
             setSubjects(subs || []);
             if (subs && subs.length > 0) setActiveSubject(subs[0].id);
 
@@ -126,6 +140,21 @@ const Communication = () => {
     const handlePostAnnouncement = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsActionLoading(true);
+
+        // Validate title - min 10, max 80 characters
+        if (annForm.title.length < 10 || annForm.title.length > 80) {
+            toast({ title: 'Invalid title', description: 'Title must be 10-80 characters.', variant: 'destructive' });
+            setIsActionLoading(false);
+            return;
+        }
+
+        // Validate content - min 15 characters
+        if (annForm.content.length < 15) {
+            toast({ title: 'Invalid content', description: 'Content must be at least 15 characters.', variant: 'destructive' });
+            setIsActionLoading(false);
+            return;
+        }
+
         try {
             const { error } = await supabase.from('announcements' as any).insert([{
                 sender_id: user?.id,
@@ -187,7 +216,7 @@ const Communication = () => {
                         <p className="text-muted-foreground text-sm tracking-tight">Broadcast notices and collaborate in real-time.</p>
                     </div>
 
-                    {(role === 'admin' || role === 'lecturer') && (
+                    {role === 'admin' && (
                         <div className="flex gap-2">
                             <Dialog open={isAnnOpen} onOpenChange={setIsAnnOpen}>
                                 <DialogTrigger asChild>
@@ -201,12 +230,23 @@ const Communication = () => {
                                         <DialogDescription>Your message will be broadcasted to the selected audience.</DialogDescription>
                                     </DialogHeader>
                                     <form onSubmit={handlePostAnnouncement} className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label>Notice Title</Label>
+<div className="space-y-2">
+                                            <Label>Notice Title <span className="text-[10px] text-muted-foreground">(10-80 chars)</span></Label>
                                             <Input
                                                 placeholder="e.g. Campus Holiday Notice"
                                                 value={annForm.title}
-                                                onChange={e => setAnnForm({ ...annForm, title: e.target.value })}
+                                                onChange={e => setAnnForm({ ...annForm, title: e.target.value.slice(0, 80) })}
+                                                maxLength={80}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Content <span className="text-[10px] text-muted-foreground">(min 15 chars)</span></Label>
+                                            <Input
+                                                className="min-h-[100px]"
+                                                placeholder="Write your announcement here..."
+                                                value={annForm.content}
+                                                onChange={e => setAnnForm({ ...annForm, content: e.target.value })}
                                                 required
                                             />
                                         </div>

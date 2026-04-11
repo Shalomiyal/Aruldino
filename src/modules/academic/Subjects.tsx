@@ -26,6 +26,7 @@ const Subjects = () => {
     // Admin Data
     const [lecturers, setLecturers] = useState<any[]>([]);
     const [departments, setDepartments] = useState<DeptLite[]>([]);
+    const [batches, setBatches] = useState<any[]>([]);
     const [selectedDeptId, setSelectedDeptId] = useState<string>('all');
 
     const [deptEditOpen, setDeptEditOpen] = useState(false);
@@ -42,7 +43,7 @@ const Subjects = () => {
         code: '',
         credits: '3',
         deptId: 'none',
-        batch: '',
+        batch: 'none',
         lecturerId: 'none',
         desc: ''
     });
@@ -122,14 +123,16 @@ const Subjects = () => {
                 if (!canShowSelected) setSelectedDeptId('all');
             }
 
-            // 3. Admin-only: Fetch all lecturers and departments for creation
+            // 3. Admin-only: Fetch all lecturers, departments and batches for creation
             if (isAdminRole(role)) {
-                const [lRes, dRes] = await Promise.all([
+                const [lRes, dRes, bRes] = await Promise.all([
                     supabase.from('profiles').select('user_id, full_name').eq('is_active', true) as any,
-                    supabase.from('departments' as any).select('id, name, description').order('name') as any
+                    supabase.from('departments' as any).select('id, name, description').order('name') as any,
+                    supabase.from('batches' as any).select('name').order('name') as any
                 ]);
                 setLecturers(lRes.data || []);
                 setDepartments(dRes.data || []);
+                setBatches(bRes.data || []);
             }
         } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -145,13 +148,29 @@ const Subjects = () => {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
+
+        // Validate subject name - min 10, max 30 characters
+        if (form.name.length < 10 || form.name.length > 30) {
+            toast({ title: 'Invalid name', description: 'Subject name must be 10-30 characters.', variant: 'destructive' });
+            setIsSaving(false);
+            return;
+        }
+
+        // Validate course code - 2 letters + 4 numbers (e.g., CS1001)
+        const codePattern = /^[A-Za-z]{2}\d{4}$/;
+        if (!codePattern.test(form.code)) {
+            toast({ title: 'Invalid code', description: 'Course code must be 2 letters + 4 numbers (e.g., CS1001).', variant: 'destructive' });
+            setIsSaving(false);
+            return;
+        }
+
         try {
             const data = {
                 name: form.name,
                 code: form.code,
                 credits: parseInt(form.credits),
                 department_id: form.deptId === 'none' ? null : form.deptId,
-                batch: form.batch,
+                batch: form.batch === 'none' ? null : form.batch,
                 lecturer_id: form.lecturerId === 'none' ? null : form.lecturerId,
                 description: form.desc
             };
@@ -168,7 +187,7 @@ const Subjects = () => {
 
             setDialogOpen(false);
             setEditingSubject(null);
-            setForm({ name: '', code: '', credits: '3', deptId: 'none', batch: '', lecturerId: 'none', desc: '' });
+            setForm({ name: '', code: '', credits: '3', deptId: 'none', batch: 'none', lecturerId: 'none', desc: '' });
             fetchData();
         } catch (error: any) {
             toast({ title: 'Failed', description: error.message, variant: 'destructive' });
@@ -286,12 +305,12 @@ const Subjects = () => {
                                 <form onSubmit={handleSave} className="space-y-4 py-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label>Subject Name</Label>
-                                            <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                                            <Label>Subject Name <span className="text-[10px] text-muted-foreground">(10-30 chars)</span></Label>
+                                            <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value.slice(0, 30) })} minLength={10} maxLength={30} required />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Course Code</Label>
-                                            <Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} required />
+                                            <Label>Course Code <span className="text-[10px] text-muted-foreground">(2 letters + 4 numbers)</span></Label>
+                                            <Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase().slice(0, 6) })} maxLength={6} required />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
@@ -307,7 +326,13 @@ const Subjects = () => {
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Target Batch</Label>
-                                            <Input placeholder="e.g. 2024" value={form.batch} onChange={e => setForm({ ...form, batch: e.target.value })} />
+                                            <Select value={form.batch} onValueChange={v => setForm({ ...form, batch: v })}>
+                                                <SelectTrigger><SelectValue placeholder="Select Batch" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None</SelectItem>
+                                                    {batches.map(b => <SelectItem key={b.name} value={b.name}>{b.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
                                     <div className="space-y-2">
@@ -429,12 +454,6 @@ const Subjects = () => {
                                     className="border-none shadow-none focus-visible:ring-0"
                                 />
                             </div>
-                            {isAdminRole(role) && (
-                                <Button className="gradient-primary" onClick={openNewSubjectForDept}>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Subject
-                                </Button>
-                            )}
                         </div>
 
                         {loading ? (
@@ -445,15 +464,9 @@ const Subjects = () => {
                             <Card className="border-dashed">
                                 <CardContent className="p-10 text-center">
                                     <p className="text-slate-900 font-semibold mb-1">No subjects found</p>
-                                    <p className="text-sm text-muted-foreground mb-6">
+                                    <p className="text-sm text-muted-foreground">
                                         Try changing department or search keywords.
                                     </p>
-                                    {isAdminRole(role) ? (
-                                        <Button className="gradient-primary" onClick={openNewSubjectForDept}>
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Create subject
-                                        </Button>
-                                    ) : null}
                                 </CardContent>
                             </Card>
                         ) : (
