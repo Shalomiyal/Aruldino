@@ -18,6 +18,52 @@ export async function fetchGroupsWithMembership(userId?: string) {
   return data ?? [];
 }
 
+export async function fetchAllGroups() {
+  const { data, error } = await (supabase.from('groups' as any)
+    .select('*')
+    .order('last_message_at', { ascending: false }) as any);
+  if (error) console.error('[socialHub] all groups:', error);
+  return data ?? [];
+}
+
+export async function fetchGroupMemberStatus(groupId: string, userId: string) {
+  const { data: member } = await supabase.from('group_members').select('*').eq('group_id', groupId).eq('user_id', userId).maybeSingle();
+  const { data: request } = await supabase.from('group_join_requests').select('*').eq('group_id', groupId).eq('user_id', userId).maybeSingle();
+  return { member, request };
+}
+
+export async function sendJoinRequest(groupId: string, userId: string) {
+  const { error } = await supabase.from('group_join_requests').insert([{ group_id: groupId, user_id: userId }]);
+  if (error) throw error;
+}
+
+export async function cancelJoinRequest(groupId: string, userId: string) {
+  const { error } = await supabase.from('group_join_requests').delete().eq('group_id', groupId).eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function fetchPendingRequests(groupId: string) {
+  const { data, error } = await (supabase.from('group_join_requests' as any)
+    .select('*, profiles:user_id(full_name, avatar_url)')
+    .eq('group_id', groupId)
+    .eq('status', 'pending') as any);
+  if (error) console.error('[socialHub] pending requests:', error);
+  return data ?? [];
+}
+
+export async function approveJoinRequest(requestId: string, groupId: string, userId: string) {
+  const { error: delErr } = await supabase.from('group_join_requests').delete().eq('id', requestId);
+  if (delErr) throw delErr;
+  
+  const { error: insErr } = await supabase.from('group_members').insert([{ group_id: groupId, user_id: userId, role: 'member' }]);
+  if (insErr) throw insErr;
+}
+
+export async function denyJoinRequest(requestId: string) {
+  const { error } = await supabase.from('group_join_requests').update({ status: 'denied' }).eq('id', requestId);
+  if (error) throw error;
+}
+
 export async function fetchChatContactsForUser(userId: string) {
   const { data: contactData, error: contactError } = await (supabase.from('chat_contacts' as any)
     .select(`

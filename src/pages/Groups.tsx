@@ -41,6 +41,9 @@ import {
   deleteChatContactPair,
   upsertChatContact,
   insertChatContactRequest,
+  fetchAllGroups,
+  sendJoinRequest,
+  cancelJoinRequest,
 } from '@/mvc/services/socialHubService';
 
 /** Max attachment size (keep in sync with storage.buckets file_size_limit for `chat-media`). */
@@ -131,11 +134,14 @@ const Groups = () => {
   const { toast } = useToast();
 
   // High-level state
-  const [chatType, setChatType] = useState<'groups' | 'direct'>('direct');
+  const [chatType, setChatType] = useState<'groups' | 'direct' | 'discover'>('direct');
   const [loading, setLoading] = useState(true);
 
   // Groups State
   const [groups, setGroups] = useState<any[]>([]);
+  const [allGroups, setAllGroups] = useState<any[]>([]);
+  const [groupMemberships, setGroupMemberships] = useState<Record<string, string>>({});
+  const [joinRequests, setJoinRequests] = useState<Record<string, string>>({});
 
   // Direct Messages State
   const [contacts, setContacts] = useState<any[]>([]);
@@ -175,6 +181,31 @@ const Groups = () => {
       setContacts(payload.contacts);
       setAllUsers(payload.directoryUsers);
       setUnreadMap(payload.unreadMap);
+
+      // Fetch all groups for discovery
+      const allG = await fetchAllGroups();
+      setAllGroups(allG || []);
+
+      // Build membership map
+      const memberships: Record<string, string> = {};
+      const requests: Record<string, string> = {};
+      for (const g of payload.groups) {
+        if (g.group_members) {
+          const mem = g.group_members.find((m: any) => m.user_id === user.id);
+          if (mem) memberships[g.id] = mem.role || 'member';
+        }
+      }
+      
+      // Check join requests
+      if (allG) {
+        for (const g of allG) {
+          const { data: req } = await supabase.from('group_join_requests').select('status').eq('group_id', g.id).eq('user_id', user.id).maybeSingle();
+          if (req) requests[g.id] = req.status;
+        }
+      }
+      
+      setGroupMemberships(memberships);
+      setJoinRequests(requests);
     } catch (error: any) {
       console.error('Fetch Basics Error:', error);
       toast({ title: 'Fetch failed', description: error.message, variant: 'destructive' });
@@ -651,19 +682,24 @@ const Groups = () => {
                 UniHub Social
               </h2>
               <div className="flex gap-2">
-                <Button size="icon" variant="ghost" onClick={() => setIsSearchOpen(true)} className="rounded-full hover:bg-primary/10">
-                  <UserPlus className="h-5 w-5" />
-                </Button>
-                <Button size="icon" variant="ghost" onClick={() => setIsCreateOpen(true)} className="rounded-full hover:bg-primary/10">
-                  <Plus className="h-5 w-5" />
-                </Button>
+                {chatType === 'direct' && (
+                  <Button size="icon" variant="ghost" onClick={() => setIsSearchOpen(true)} className="rounded-full hover:bg-primary/10">
+                    <UserPlus className="h-5 w-5" />
+                  </Button>
+                )}
+                {chatType === 'groups' && (
+                  <Button size="icon" variant="ghost" onClick={() => setIsCreateOpen(true)} className="rounded-full hover:bg-primary/10">
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                )}
               </div>
             </div>
 
-            <Tabs value={chatType} onValueChange={(v) => setChatType(v as 'groups' | 'direct')}>
-              <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50 rounded-xl">
+            <Tabs value={chatType} onValueChange={(v) => setChatType(v as 'groups' | 'direct' | 'discover')}>
+              <TabsList className="grid w-full grid-cols-3 p-1 bg-muted/50 rounded-xl">
                 <TabsTrigger value="direct" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">Direct</TabsTrigger>
-                <TabsTrigger value="groups" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">Groups</TabsTrigger>
+                <TabsTrigger value="groups" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">My Groups</TabsTrigger>
+                <TabsTrigger value="discover" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">Discover</TabsTrigger>
               </TabsList>
             </Tabs>
 
@@ -683,50 +719,35 @@ const Groups = () => {
               {loading ? (
                 <div className="flex flex-col items-center justify-center h-48 space-y-2 text-muted-foreground">
                   <Loader2 className="h-8 w-8 animate-spin opacity-20" />
-                  <p className="text-[10px] font-bold uppercase tracking-widest">Retrieving Threads</p>
-                </div>
-              ) : chatType === 'direct' ? (
-                contacts.filter(c => c.profile?.full_name?.toLowerCase().includes(sidebarSearch.toLowerCase())).length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p className="text-sm">No chats found.</p>
+<p className="text-[10px] font-bold uppercase tracking-widest">Retrieving Threads</p>
                   </div>
-                ) : (
-                  contacts
-                    .filter(c => c.profile?.full_name?.toLowerCase().includes(sidebarSearch.toLowerCase()))
-                    .map(chat => (
-                      <button
-                        key={chat.id}
-                        onClick={() => chat.profile && setSelectedChat(chat.profile)}
-                        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${selectedChat?.user_id === chat.profile?.user_id
-                          ? 'bg-primary text-primary-foreground shadow-lg scale-[1.02]'
-                          : 'hover:bg-muted/50'
-                          }`}
-                      >
-                        <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
-                          <AvatarImage src={chat.profile?.avatar_url} />
-                          <AvatarFallback className={selectedChat?.user_id === chat.profile?.user_id ? 'bg-white/20' : 'gradient-primary text-white'}>
-                            {chat.profile?.full_name?.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 text-left overflow-hidden">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className={`text-sm truncate ${unreadMap[chat.id] && selectedChat?.user_id !== chat.profile?.user_id ? 'font-black text-foreground' : 'font-bold'}`}>
-                              {chat.profile?.full_name}
-                            </span>
-                            {chat.status === 'pending' && <Badge variant="secondary" className="text-[8px] h-3 px-1 bg-yellow-500 text-white">REQUEST</Badge>}
-                            {unreadMap[chat.id] && selectedChat?.user_id !== chat.profile?.user_id && <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
-                          </div>
-                          <p className={`text-xs truncate ${selectedChat?.user_id === chat.profile?.user_id ? 'text-primary-foreground/70' : 'text-muted-foreground'} ${unreadMap[chat.id] && selectedChat?.user_id !== chat.profile?.user_id ? 'font-bold' : ''}`}>
-                            {chat.status === 'blocked' ? '[Blocked]' : (chat.last_message_content || 'No messages yet')}
-                          </p>
+                ) : chatType === 'direct' ? (
+                  contacts.filter(c => c.profile?.full_name?.toLowerCase().includes(sidebarSearch.toLowerCase())).length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">No chats found.</p>
+                    </div>
+                  ) : contacts.filter(c => c.profile?.full_name?.toLowerCase().includes(sidebarSearch.toLowerCase())).map(chat => (
+                    <button key={chat.id} onClick={() => chat.profile && setSelectedChat(chat.profile)} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${selectedChat?.user_id === chat.profile?.user_id ? 'bg-primary text-primary-foreground shadow-lg scale-[1.02]' : 'hover:bg-muted/50'}`}>
+                      <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+                        <AvatarImage src={chat.profile?.avatar_url} />
+                        <AvatarFallback className={selectedChat?.user_id === chat.profile?.user_id ? 'bg-white/20' : 'gradient-primary text-white'}>{chat.profile?.full_name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 text-left overflow-hidden">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className={`text-sm truncate ${unreadMap[chat.id] && selectedChat?.user_id !== chat.profile?.user_id ? 'font-black text-foreground' : 'font-bold'}`}>{chat.profile?.full_name}</span>
+                          {chat.status === 'pending' && <Badge variant="secondary" className="text-[8px] h-3 px-1 bg-yellow-500 text-white">REQUEST</Badge>}
+                          {unreadMap[chat.id] && selectedChat?.user_id !== chat.profile?.user_id && <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
                         </div>
-                      </button>
-                    ))
-                )
-              ) : (
-                groups.map(group => (
-                  <button
+                        <p className={`text-xs truncate ${selectedChat?.user_id === chat.profile?.user_id ? 'text-primary-foreground/70' : 'text-muted-foreground'} ${unreadMap[chat.id] && selectedChat?.user_id !== chat.profile?.user_id ? 'font-bold' : ''}`}>
+                          {chat.status === 'blocked' ? '[Blocked]' : (chat.last_message_content || 'No messages yet')}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                ) : chatType === 'groups' ? (
+                  groups.map(group => (
+                    <button
                     key={group.id}
                     onClick={() => {
                       setChatType('groups');
@@ -756,7 +777,61 @@ const Groups = () => {
                     </div>
                   </button>
                 ))
-              )}
+                ) : chatType === 'discover' ? (
+                  allGroups.filter(g => g.name?.toLowerCase().includes(sidebarSearch.toLowerCase())).length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      <Users className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">No groups to discover.</p>
+                    </div>
+                  ) : (
+                    allGroups
+                      .filter(g => g.name?.toLowerCase().includes(sidebarSearch.toLowerCase()))
+                      .map(group => {
+                        const memStatus = groupMemberships[group.id];
+                        const reqStatus = joinRequests[group.id];
+                        return (
+                          <button
+                            key={group.id}
+                            onClick={() => memStatus && (setChatType('groups'), setSelectedChat(group))}
+                            className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-muted/50"
+                          >
+                            <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+                              <AvatarFallback className="gradient-indigo text-white">
+                                {group.name?.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 text-left overflow-hidden">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm font-bold truncate">{group.name}</span>
+                                {memStatus ? (
+                                  <Badge variant="secondary" className="text-[10px]">Member</Badge>
+                                ) : reqStatus === 'pending' ? (
+                                  <Badge variant="outline" className="text-[10px]">Pending</Badge>
+                                ) : (
+                                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      await sendJoinRequest(group.id, user.id);
+                                      setJoinRequests({ ...joinRequests, [group.id]: 'pending' });
+                                      toast({ title: 'Request sent', description: 'Your join request has been sent.' });
+                                    } catch (err: any) {
+                                      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                                    }
+                                  }}>Join</Button>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">{group.description || 'No description'}</p>
+                            </div>
+                          </button>
+                        );
+                      })
+                  )
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Users className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">Select a tab to view chats.</p>
+                  </div>
+                )}
             </div>
           </ScrollArea>
         </div>
