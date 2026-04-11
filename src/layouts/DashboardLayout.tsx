@@ -4,8 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import {
   LayoutDashboard, BookOpen, ClipboardCheck, FileText,
   Calendar as CalendarIcon, BarChart3, Bell, LogOut,
-  Settings, ChevronDown, UserCircle, Layers, BookOpenCheck, GraduationCap,
-  Award, Calculator, Trophy, Shield, ShieldCheck, UserPlus, MessageSquare,
+  Settings, ChevronDown, UserCircle, Layers, BookOpenCheck,
+  Award, Calculator, Shield, ShieldCheck, UserPlus, MessageSquare,
   ChevronLeft, Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,6 @@ const navItems: NavItem[] = [
 
   { label: 'Subjects', path: '/subjects', icon: BookOpen, roles: ['admin', 'lecturer', 'student'] },
   { label: 'Timetable', path: '/timetable', icon: CalendarIcon, roles: ['admin', 'lecturer', 'student'] },
-  { label: 'Exams', path: '/exams', icon: Trophy, roles: ['admin', 'lecturer', 'student'] },
   { label: 'Academy Events', path: '/events', icon: CalendarIcon, roles: ['admin', 'lecturer', 'student'] },
 
   { label: 'Attendance', path: '/attendance', icon: ClipboardCheck, roles: ['lecturer', 'student'] },
@@ -47,11 +46,8 @@ const navItems: NavItem[] = [
   { label: 'Departments', path: '/admin/departments', icon: BookOpenCheck, roles: ['admin', 'lecturer'] },
   { label: 'Manage Batches', path: '/admin/batches', icon: Layers, roles: ['admin', 'lecturer'] },
   { label: 'Enrollments', path: '/admin/enrollments', icon: UserPlus, roles: ['admin', 'lecturer'] },
-  { label: 'Faculty', path: '/admin/faculty', icon: GraduationCap, roles: ['admin'] },
   { label: 'Users', path: '/admin/users', icon: Settings, roles: ['admin', 'lecturer'], permission: 'manage:users' },
-  { label: 'Audit Logs', path: '/admin/audit', icon: Shield, roles: ['admin', 'lecturer'], permission: 'view:audit_logs' },
   { label: 'Security', path: '/admin/security', icon: ShieldCheck, roles: ['admin', 'lecturer'], permission: 'manage:security' },
-  { label: 'System Admin', path: '/admin/system', icon: Shield, roles: ['admin'] },
   { label: 'Reports', path: '/analytics', icon: BarChart3, roles: ['admin', 'lecturer'], permission: 'view:reports' },
 ];
 

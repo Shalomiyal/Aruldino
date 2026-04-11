@@ -20,8 +20,8 @@ const AdminDashboard = () => {
                 (supabase.from('departments' as any) as any).select('id', { count: 'exact', head: true }),
                 supabase.from('subjects').select('id', { count: 'exact', head: true }),
                 (supabase.from('exams' as any) as any).select('id', { count: 'exact', head: true }),
-                (supabase.from('activity_logs') as any).select('*, profiles(full_name)').order('created_at', { ascending: false }).limit(5),
-                (supabase.from('activity_logs') as any).select('*, profiles(full_name)').eq('action', 'LOGIN').order('created_at', { ascending: false }).limit(5)
+                (supabase.from('activity_logs') as any).select('*').order('created_at', { ascending: false }).limit(5),
+                (supabase.from('activity_logs') as any).select('*').eq('action', 'LOGIN').order('created_at', { ascending: false }).limit(5)
             ]);
 
             const firstErr = [u, d, s, e, l, logins].find((r) => r.error)?.error;
@@ -107,7 +107,7 @@ const AdminDashboard = () => {
                                     <div className="flex-1">
                                         <p className="text-sm font-semibold text-slate-900">{log.action}</p>
                                         <p className="text-xs text-slate-500">
-                                            <span className="font-medium text-[#2baec1]">{log.profiles?.full_name || 'Unknown'}</span> • {log.entity_type} • {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            <span className="font-medium text-[#2baec1]">{log.user_id?.slice(0, 8) || 'Unknown'}</span> • {log.entity_type} • {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
                                 </div>
@@ -135,7 +135,7 @@ const AdminDashboard = () => {
                                     <LogIn className="h-5 w-5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-slate-900 truncate">{login.profiles?.full_name || 'Unknown'}</p>
+                                    <p className="text-sm font-semibold text-slate-900 truncate">{login.user_id?.slice(0, 12) || 'Unknown'} • {login.entity_type}</p>
                                     <p className="text-xs text-slate-500 flex items-center gap-1">
                                         <Clock className="h-3 w-3" />
                                         {new Date(login.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(login.created_at).toLocaleDateString()}

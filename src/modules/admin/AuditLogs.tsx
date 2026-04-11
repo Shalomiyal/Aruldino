@@ -25,8 +25,10 @@ const AuditLogs = () => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [loginHistory, setLoginHistory] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+    const [activeTab, setActiveTab] = useState<'logins' | 'audit'>('logins');
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -46,9 +48,34 @@ const AuditLogs = () => {
         }
     };
 
+    const fetchLoginHistory = async () => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('activity_logs' as any)
+                .select('*')
+                .eq('action', 'LOGIN')
+                .order('created_at', { ascending: false })
+                .limit(100) as any;
+
+            if (error) throw error;
+            setLoginHistory(data || []);
+        } catch (error: any) {
+            toast({ title: 'Fetch failed', description: error.message, variant: 'destructive' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        if (role === 'admin') fetchLogs();
-    }, [role]);
+        if (role === 'admin') {
+            if (activeTab === 'logins') {
+                fetchLoginHistory();
+            } else {
+                fetchLogs();
+            }
+        }
+    }, [role, activeTab]);
 
     const filteredLogs = logs.filter(log =>
         log.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -74,7 +101,7 @@ const AuditLogs = () => {
                             <Shield className="h-5 w-5 text-primary" />
                             <h1 className="text-2xl font-bold font-heading">Security Audit Trail</h1>
                         </div>
-                        <p className="text-muted-foreground text-sm tracking-tight">Tamper-proof activity logs for system accountability.</p>
+                        <p className="text-muted-foreground text-sm tracking-tight">System activity logs and user login history.</p>
                     </div>
 
                     <div className="flex gap-2">
@@ -87,26 +114,121 @@ const AuditLogs = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <Button variant="outline" onClick={fetchLogs} disabled={loading}>
+                        <Button variant="outline" onClick={() => activeTab === 'logins' ? fetchLoginHistory() : fetchLogs()} disabled={loading}>
                             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <History className="h-4 w-4" />}
                         </Button>
                     </div>
                 </div>
 
+                <div className="flex gap-2 border-b border-border pb-2">
+                    <Button
+                        variant={activeTab === 'logins' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('logins')}
+                        className="rounded-b-none"
+                    >
+                        <History className="h-4 w-4 mr-2" />
+                        Login History
+                    </Button>
+                    <Button
+                        variant={activeTab === 'audit' ? 'default' : 'ghost'}
+                        onClick={() => setActiveTab('audit')}
+                        className="rounded-b-none"
+                    >
+                        <Database className="h-4 w-4 mr-2" />
+                        Audit Logs
+                    </Button>
+                </div>
+
                 <Card className="shadow-premium border-none overflow-hidden">
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/30">
-                                    <TableHead className="pl-6 w-48">Timestamp</TableHead>
-                                    <TableHead>Principal</TableHead>
-                                    <TableHead>Action</TableHead>
-                                    <TableHead>Entity</TableHead>
-                                    <TableHead>Origin</TableHead>
-                                    <TableHead className="text-right pr-6">Details</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        {activeTab === 'logins' ? (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/30">
+                                        <TableHead className="pl-6 w-48">Time</TableHead>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Role</TableHead>
+                                        <TableHead>IP Address</TableHead>
+                                        <TableHead className="text-right pr-6">Details</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-64 text-center">
+                                                <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : loginHistory.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-64 text-center text-muted-foreground">
+                                                <History className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                                                No login records found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        loginHistory.map((login) => (
+                                            <TableRow key={login.id} className="hover:bg-muted/10">
+                                                <TableCell className="pl-6 font-mono text-xs">
+                                                    {format(new Date(login.created_at), 'MMM d, yyyy HH:mm')}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-sm tracking-tight">
+                                                            {login.user_id ? login.user_id.slice(0, 8) + '...' : 'Unknown'}
+                                                        </span>
+                                                        <span className="text-[10px] text-muted-foreground">{login.entity_type}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                                                        {login.entity_type || 'user'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                                                        <Globe className="h-3 w-3" />
+                                                        {login.ip_address || 'Localhost'}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6">
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon">
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Login Details</DialogTitle>
+                                                            </DialogHeader>
+                                                            <div className="space-y-2 text-sm">
+                                                                <p><span className="text-muted-foreground">User ID:</span> {login.user_id}</p>
+                                                                <p><span className="text-muted-foreground">Type:</span> {login.entity_type}</p>
+                                                                <p><span className="text-muted-foreground">Time:</span> {format(new Date(login.created_at), 'PPPppp')}</p>
+                                                                <p><span className="text-muted-foreground">IP:</span> {login.ip_address || 'Localhost'}</p>
+                                                            </div>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/30">
+                                        <TableHead className="pl-6 w-48">Timestamp</TableHead>
+                                        <TableHead>Principal</TableHead>
+                                        <TableHead>Action</TableHead>
+                                        <TableHead>Entity</TableHead>
+                                        <TableHead>Origin</TableHead>
+                                        <TableHead className="text-right pr-6">Details</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                 {loading ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="h-64 text-center">
@@ -226,6 +348,7 @@ const AuditLogs = () => {
                                 )}
                             </TableBody>
                         </Table>
+                        )}
                     </CardContent>
                 </Card>
             </div>

@@ -459,7 +459,7 @@ const Subjects = () => {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                 {filtered.map(s => (
-                                    <Card key={s.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary">
+                                    <Card key={s.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary overflow-hidden">
                                         <CardHeader className="pb-3">
                                             <div className="flex justify-between items-start mb-2">
                                                 <Badge variant="outline" className="font-mono text-[10px]">{s.code}</Badge>
@@ -482,19 +482,21 @@ const Subjects = () => {
                                                 </div>
                                             </div>
                                             {isAdminRole(role) && (
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     <Button
                                                         variant="outline"
-                                                        className="flex-1 text-xs h-8"
+                                                        size="sm"
+                                                        className="text-xs h-8 flex-1 min-w-[80px]"
                                                         onClick={() => window.location.href = `/admin/enrollments?subject=${s.id}`}
                                                     >
-                                                        <Users className="mr-2 h-3 w-3" /> Enroll
+                                                        <Users className="mr-1 h-3 w-3" /> Enroll
                                                     </Button>
-                                                    <Button variant="outline" className="flex-1 text-xs h-8" onClick={() => openEditDialog(s)}>
-                                                        <Edit2 className="mr-2 h-3 w-3" /> Edit
+                                                    <Button variant="outline" size="sm" className="text-xs h-8 flex-1 min-w-[60px]" onClick={() => openEditDialog(s)}>
+                                                        <Edit2 className="mr-1 h-3 w-3" /> Edit
                                                     </Button>
                                                     <Button
                                                         variant="outline"
+                                                        size="sm"
                                                         className="text-destructive border-destructive/20 hover:bg-destructive/5 text-xs h-8"
                                                         onClick={() => handleDelete(s.id)}
                                                     >

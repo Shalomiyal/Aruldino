@@ -225,7 +225,12 @@ const Profile = () => {
                                         type="file"
                                         accept="image/png,image/jpeg,image/webp"
                                         className="hidden"
-                                        disabled={!isEditing}
+                                        onClick={(e) => {
+                                            if (!isEditing) {
+                                                e.preventDefault();
+                                                toast({ title: 'Edit Mode Required', description: 'Press the Edit button to change your profile picture.' });
+                                            }
+                                        }}
                                         onChange={(e) => {
                                             if (!isEditing) return;
                                             const f = e.target.files?.[0] || null;

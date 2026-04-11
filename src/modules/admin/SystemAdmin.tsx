@@ -40,7 +40,7 @@ const SystemAdmin = () => {
     const fetchLoginSessions = async () => {
         try {
             const { data, error } = await (supabase.from('activity_logs') as any)
-                .select('id, user_id, action, entity_type, created_at, profiles(full_name, email)')
+                .select('id, user_id, action, entity_type, created_at')
                 .eq('action', 'LOGIN')
                 .order('created_at', { ascending: false })
                 .limit(50);

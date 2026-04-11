@@ -24,7 +24,6 @@ const Timetable = lazy(() => import("./modules/academic/Timetable"));
 const Attendance = lazy(() => import("./modules/attendance/Attendance"));
 const Exams = lazy(() => import("./modules/academic/Exams"));
 const Communication = lazy(() => import("./modules/communication/Communication"));
-const AuditLogs = lazy(() => import("./modules/admin/AuditLogs"));
 const PermissionControl = lazy(() => import("./modules/admin/PermissionControl"));
 
 const Assignments = lazy(() => import("./pages/Assignments"));
@@ -39,7 +38,6 @@ const DepartmentManagement = lazy(() => import("./modules/admin/DepartmentManage
 const Grading = lazy(() => import("./modules/academic/Grading"));
 const Enrollments = lazy(() => import("./modules/academic/Enrollments"));
 const MyGrades = lazy(() => import("./modules/student/MyGrades"));
-const SystemAdmin = lazy(() => import("./modules/admin/SystemAdmin"));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -89,10 +87,8 @@ const App = () => (
                 <Route path="/results" element={<ProtectedRoute allowedRoles={['student']}><MyGrades /></ProtectedRoute>} />
                 <Route path="/exams" element={<ProtectedRoute allowedRoles={['lecturer', 'student']}><Exams /></ProtectedRoute>} />
                 <Route path="/communication" element={<ProtectedRoute><Communication /></ProtectedRoute>} />
-                <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="view:audit_logs"><AuditLogs /></ProtectedRoute>} />
                 <Route path="/admin/security" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:security"><PermissionControl /></ProtectedRoute>} />
                 <Route path="/admin/enrollments" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']}><Enrollments /></ProtectedRoute>} />
-                <Route path="/admin/system" element={<ProtectedRoute allowedRoles={['admin']}><SystemAdmin /></ProtectedRoute>} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
