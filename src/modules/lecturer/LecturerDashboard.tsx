@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -77,12 +78,12 @@ const LecturerDashboard = () => {
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        <QuickActionLink href="/subjects" icon={BookOpen} label="Subjects" color="text-blue-600" />
-                        <QuickActionLink href="/grading" icon={CheckCircle2} label="Grading" color="text-primary" />
-                        <QuickActionLink href="/attendance" icon={ClipboardCheck} label="Attendance" color="text-green-600" />
-                        <QuickActionLink href="/timetable" icon={Clock} label="Timetable" color="text-orange-600" />
-                        <QuickActionLink href="/exams" icon={GraduationCap} label="Exams" color="text-purple-600" />
-                        <QuickActionLink href="/assignments" icon={AlertCircle} label="Assignments" color="text-red-600" />
+                        <QuickActionLink to="/subjects" icon={BookOpen} label="Subjects" color="text-blue-600" />
+                        <QuickActionLink to="/grading" icon={CheckCircle2} label="Grading" color="text-primary" />
+                        <QuickActionLink to="/attendance" icon={ClipboardCheck} label="Attendance" color="text-green-600" />
+                        <QuickActionLink to="/timetable" icon={Clock} label="Timetable" color="text-orange-600" />
+                        <QuickActionLink to="/exams" icon={GraduationCap} label="Exams" color="text-purple-600" />
+                        <QuickActionLink to="/assignments" icon={AlertCircle} label="Assignments" color="text-red-600" />
                     </div>
                 </CardContent>
             </Card>
@@ -156,16 +157,16 @@ const ClassItem = ({ time, subject, room }: any) => (
     </div>
 );
 
-const QuickActionLink = ({ href, icon: Icon, label, color }: any) => (
-    <a 
-        href={href}
+const QuickActionLink = ({ to, icon: Icon, label, color }: { to: string; icon: React.ElementType; label: string; color: string }) => (
+    <Link
+        to={to}
         className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-slate-200 hover:border-primary/30 hover:shadow-lg transition-all duration-300 group"
     >
         <div className={`p-3 rounded-xl bg-slate-50 group-hover:bg-primary/5 transition-colors mb-2`}>
             <Icon className={`h-6 w-6 ${color}`} />
         </div>
         <span className="text-xs font-bold text-slate-700 uppercase tracking-tighter">{label}</span>
-    </a>
+    </Link>
 );
 
 export default LecturerDashboard;

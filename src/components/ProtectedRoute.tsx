@@ -8,6 +8,10 @@ interface ProtectedRouteProps {
   requiredPermission?: string;
 }
 
+function roleMatchesAllowed(role: string, allowed: string[]): boolean {
+  return allowed.includes(role);
+}
+
 const ProtectedRoute = ({ children, allowedRoles, requiredPermission }: ProtectedRouteProps) => {
   const { user, role, loading, hasPermission } = useAuth();
   const location = useLocation();
@@ -24,7 +28,7 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermission }: Protecte
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
+  if (allowedRoles && role && !roleMatchesAllowed(role, allowedRoles)) {
     return <Navigate to="/dashboard" replace />;
   }
 

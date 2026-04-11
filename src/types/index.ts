@@ -1,4 +1,4 @@
-export type AppRole = 'admin' | 'lecturer' | 'student' | 'superadmin';
+export type AppRole = 'admin' | 'lecturer' | 'student';
 
 export interface Profile {
   id: string;
@@ -11,6 +11,9 @@ export interface Profile {
   status: 'active' | 'inactive';
   deleted_at: string | null;
   is_active: boolean;
+  bio?: string | null;
+  phone?: string | null;
+  address?: string | null;
   created_at: string;
   updated_at: string;
 }

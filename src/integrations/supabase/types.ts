@@ -513,17 +513,17 @@ export type Database = {
       user_roles: {
         Row: {
           id: string
-          role: Database["public"]["Enums"]["app_role"] | 'superadmin'
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           id?: string
-          role?: Database["public"]["Enums"]["app_role"] | 'superadmin'
+          role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           id?: string
-          role?: Database["public"]["Enums"]["app_role"] | 'superadmin'
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -533,6 +533,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_group_member: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: undefined
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -553,7 +557,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "lecturer" | "student" | "superadmin"
+      app_role: "admin" | "lecturer" | "student"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -681,7 +685,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "lecturer", "student", "superadmin"],
+      app_role: ["admin", "lecturer", "student"],
     },
   },
 } as const

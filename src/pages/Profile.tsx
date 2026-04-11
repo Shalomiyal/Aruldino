@@ -11,34 +11,60 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { 
     Loader2, User, Mail, Shield, Building2, Layers, 
-    Save, Phone, MapPin, Sparkles, BookOpen, Clock 
+    Save, Phone, MapPin, Sparkles, BookOpen, Clock, Camera, Edit2
 } from 'lucide-react';
 
 const Profile = () => {
     const { user, profile, role, fetchProfile } = useAuth();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [bio, setBio] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [initialForm, setInitialForm] = useState({
+        fullName: '',
+        email: '',
+        bio: '',
+        phone: '',
+        address: ''
+    });
     const [deptName, setDeptName] = useState('N/A');
     const [subjects, setSubjects] = useState<any[]>([]);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
     useEffect(() => {
         if (profile) {
-            setFullName(profile.full_name || '');
-            setEmail(profile.email || '');
-            setBio((profile as any).bio || '');
-            setPhone((profile as any).phone || '');
-            setAddress((profile as any).address || '');
-            fetchDepartment();
+            const next = {
+                fullName: profile.full_name || '',
+                email: profile.email || '',
+                bio: (profile as any).bio || '',
+                phone: (profile as any).phone || '',
+                address: (profile as any).address || '',
+            };
+            setFullName(next.fullName);
+            setEmail(next.email);
+            setBio(next.bio);
+            setPhone(next.phone);
+            setAddress(next.address);
+            setInitialForm(next);
+            setIsEditing(false);
+            setAvatarFile(null);
+            if (avatarPreview) {
+                URL.revokeObjectURL(avatarPreview);
+                setAvatarPreview(null);
+            }
+            if (role !== 'admin') fetchDepartment();
             fetchRelevantData();
         }
-    }, [profile]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile, role]);
 
     const fetchDepartment = async () => {
+        if (role === 'admin') return;
         if (profile?.department_id) {
             const { data } = await supabase
                 .from('departments' as any)
@@ -47,6 +73,48 @@ const Profile = () => {
                 .maybeSingle();
             if (data) setDeptName((data as any).name);
         }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+        };
+    }, [avatarPreview]);
+
+    const uploadAvatarIfNeeded = async () => {
+        if (!avatarFile || !user?.id) return null;
+
+        const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+        if (!allowed.includes(avatarFile.type)) {
+            throw new Error('Only PNG, JPG, or WEBP images are allowed.');
+        }
+        if (avatarFile.size > 3 * 1024 * 1024) {
+            throw new Error('Image too large. Max size is 3MB.');
+        }
+
+        const fileExt = avatarFile.name.split('.').pop() || 'png';
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const bucketsToTry = ['avatars', 'assignments'];
+        let uploadedBucket: string | null = null;
+        let lastError: any = null;
+
+        for (const bucket of bucketsToTry) {
+            const { error } = await supabase.storage.from(bucket).upload(filePath, avatarFile, { upsert: true });
+            if (!error) {
+                uploadedBucket = bucket;
+                break;
+            }
+            lastError = error;
+        }
+
+        if (!uploadedBucket) {
+            throw new Error(lastError?.message || 'Failed to upload profile image.');
+        }
+
+        const { data } = supabase.storage.from(uploadedBucket).getPublicUrl(filePath);
+        return data?.publicUrl || null;
     };
 
     const fetchRelevantData = async () => {
@@ -72,14 +140,27 @@ const Profile = () => {
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!isEditing) return;
         setLoading(true);
 
         try {
+            const normalizedPhone = phone.replace(/\D/g, '');
+            if (normalizedPhone.length > 0 && !/^\d{10}$/.test(normalizedPhone)) {
+                toast({
+                    title: 'Invalid phone number',
+                    description: 'Phone number must be exactly 10 digits (numbers only).',
+                    variant: 'destructive'
+                });
+                return;
+            }
+
+            const avatarUrl = await uploadAvatarIfNeeded();
             const updates: any = {
                 full_name: fullName,
                 bio,
-                phone,
+                phone: normalizedPhone,
                 address,
+                ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
                 updated_at: new Date().toISOString(),
             };
 
@@ -90,6 +171,12 @@ const Profile = () => {
 
             toast({ title: 'Profile Updated', description: 'Your changes have been saved.' });
             setTimeout(async () => { await fetchProfile(); }, 500);
+            setAvatarFile(null);
+            if (avatarPreview) {
+                URL.revokeObjectURL(avatarPreview);
+                setAvatarPreview(null);
+            }
+            setIsEditing(false);
         } catch (error: any) {
             toast({ title: 'Update Failed', description: error.message, variant: 'destructive' });
         } finally {
@@ -97,7 +184,7 @@ const Profile = () => {
         }
     };
 
-    const isEmailDisabled = role !== 'admin';
+    const isEmailDisabled = role !== 'admin' || !isEditing;
 
     return (
         <DashboardLayout>
@@ -119,8 +206,36 @@ const Profile = () => {
 
                     <div className="px-8 -mt-20 relative z-10 flex flex-col md:flex-row md:items-end gap-6">
                         <div className="h-40 w-40 rounded-[2rem] bg-white p-2 shadow-2xl border-4 border-white inline-block hover:scale-[1.02] transition-transform duration-500">
-                            <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-primary text-5xl font-black shadow-inner">
-                                {profile?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                            <div className="h-full w-full rounded-[1.5rem] bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden relative shadow-inner">
+                                {avatarPreview || (profile as any)?.avatar_url ? (
+                                    <img
+                                        src={(avatarPreview || (profile as any)?.avatar_url) as string}
+                                        alt="Profile"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-primary text-5xl font-black">
+                                        {profile?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                                    </div>
+                                )}
+
+                                <label className="absolute bottom-2 right-2 inline-flex items-center justify-center h-10 w-10 rounded-2xl bg-white/90 backdrop-blur border border-slate-200 shadow-lg cursor-pointer hover:bg-white transition-colors">
+                                    <Camera className="h-5 w-5 text-slate-700" />
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        className="hidden"
+                                        disabled={!isEditing}
+                                        onChange={(e) => {
+                                            if (!isEditing) return;
+                                            const f = e.target.files?.[0] || null;
+                                            if (!f) return;
+                                            if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+                                            setAvatarFile(f);
+                                            setAvatarPreview(URL.createObjectURL(f));
+                                        }}
+                                    />
+                                </label>
                             </div>
                         </div>
                         <div className="mb-4 space-y-1">
@@ -129,8 +244,12 @@ const Profile = () => {
                             </h1>
                             <div className="flex flex-wrap items-center gap-4 text-slate-500 font-medium">
                                 <span className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> {profile?.email}</span>
-                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4" /> {deptName}</span>
+                                {role !== 'admin' && (
+                                    <>
+                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                        <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4" /> {deptName}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -192,8 +311,51 @@ const Profile = () => {
                     <div className="lg:col-span-2 space-y-8">
                         <Card className="shadow-premium border-none rounded-[2.5rem] bg-white/80 backdrop-blur-sm shadow-xl overflow-hidden">
                             <CardHeader className="bg-slate-50/50 border-b border-slate-100 px-8 py-6">
-                                <CardTitle className="text-2xl font-black font-heading tracking-tight text-slate-900">Information Management</CardTitle>
-                                <CardDescription className="text-slate-500">Update your core profile indicators and summary.</CardDescription>
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                    <div>
+                                        <CardTitle className="text-2xl font-black font-heading tracking-tight text-slate-900">Information Management</CardTitle>
+                                        <CardDescription className="text-slate-500">
+                                            {isEditing ? 'Edit your profile details and save changes.' : 'View your profile details. Click Edit to modify.'}
+                                        </CardDescription>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {!isEditing ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="rounded-2xl"
+                                                onClick={() => setIsEditing(true)}
+                                            >
+                                                <Edit2 className="mr-2 h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                        ) : (
+                                            <>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="rounded-2xl"
+                                                    onClick={() => {
+                                                        setFullName(initialForm.fullName);
+                                                        setEmail(initialForm.email);
+                                                        setBio(initialForm.bio);
+                                                        setPhone(initialForm.phone);
+                                                        setAddress(initialForm.address);
+                                                        setAvatarFile(null);
+                                                        if (avatarPreview) {
+                                                            URL.revokeObjectURL(avatarPreview);
+                                                            setAvatarPreview(null);
+                                                        }
+                                                        setIsEditing(false);
+                                                    }}
+                                                    disabled={loading}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </CardHeader>
                             <CardContent className="p-8">
                                 <form onSubmit={handleUpdateProfile} className="space-y-10">
@@ -204,6 +366,7 @@ const Profile = () => {
                                             value={fullName} 
                                             onChange={(e: any) => setFullName(e.target.value)} 
                                             required 
+                                            disabled={!isEditing}
                                         />
                                         <ProfileInput 
                                             label="Digital Identity (Email)" 
@@ -216,8 +379,12 @@ const Profile = () => {
                                             label="Communication Link (Phone)" 
                                             icon={Phone} 
                                             value={phone} 
-                                            onChange={(e: any) => setPhone(e.target.value)} 
-                                            placeholder="+94 7X XXX XXXX"
+                                            onChange={(e: any) => {
+                                                const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, 10);
+                                                setPhone(digits);
+                                            }} 
+                                            placeholder="10-digit phone number"
+                                            disabled={!isEditing}
                                         />
                                         <ProfileInput 
                                             label="Physical Residency" 
@@ -225,34 +392,38 @@ const Profile = () => {
                                             value={address} 
                                             onChange={(e: any) => setAddress(e.target.value)} 
                                             placeholder="City, Country"
+                                            disabled={!isEditing}
                                         />
                                         
                                         <div className="md:col-span-2 space-y-3">
                                             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-1">Professional Abstract (Bio)</Label>
                                             <textarea
-                                                className="w-full min-h-[120px] p-5 bg-slate-50/50 border-2 border-slate-100 rounded-3xl text-sm font-medium focus:ring-4 ring-primary/10 border-primary/20 outline-none transition-all placeholder:text-slate-400 shadow-inner"
+                                                className={`w-full min-h-[120px] p-5 bg-slate-50/50 border-2 border-slate-100 rounded-3xl text-sm font-medium outline-none transition-all placeholder:text-slate-400 shadow-inner ${isEditing ? 'focus:ring-4 ring-primary/10 border-primary/20' : 'opacity-80 cursor-not-allowed'}`}
                                                 placeholder="A brief summary about your academic or professional background..."
                                                 value={bio}
                                                 onChange={(e) => setBio(e.target.value)}
+                                                readOnly={!isEditing}
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="flex justify-end pt-6">
-                                        <Button type="submit" className="gradient-primary px-12 h-14 font-black rounded-2xl shadow-xl shadow-[#2baec1]/20 hover:-translate-y-1 transition-all" disabled={loading}>
-                                            {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-                                            Commit Changes
-                                        </Button>
-                                    </div>
+                                    {isEditing && (
+                                        <div className="flex justify-end pt-6">
+                                            <Button type="submit" className="gradient-primary px-12 h-14 font-black rounded-2xl shadow-xl shadow-[#2baec1]/20 hover:-translate-y-1 transition-all" disabled={loading}>
+                                                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+                                                Commit Changes
+                                            </Button>
+                                        </div>
+                                    )}
                                 </form>
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-premium border-none rounded-[2.5rem] bg-slate-900 text-white overflow-hidden shadow-2xl relative">
+                        <Card className="shadow-premium border-none rounded-[2.5rem] bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl relative">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
-                            <CardHeader className="px-8 py-6 border-b border-white/10 relative z-10">
-                                <CardTitle className="text-2xl font-black font-heading tracking-tight">Access Protocol</CardTitle>
-                                <CardDescription className="text-slate-400">Secure your digital campus account</CardDescription>
+                            <CardHeader className="px-8 py-6 border-b border-slate-100 relative z-10">
+                                <CardTitle className="text-2xl font-black font-heading tracking-tight text-slate-900">Access Protocol</CardTitle>
+                                <CardDescription className="text-slate-500">Secure your digital campus account</CardDescription>
                             </CardHeader>
                             <CardContent className="p-8 relative z-10">
                                 <ChangePasswordForm />
@@ -340,7 +511,7 @@ const ChangePasswordForm = () => {
                         value={password} 
                         onChange={(e) => setPassword(e.target.value)} 
                         required 
-                        className="h-14 bg-white/5 border-white/10 rounded-2xl border-2 focus:border-primary transition-all text-white font-black"
+                        className="h-14 bg-slate-50/50 border-slate-100 rounded-2xl border-2 focus:border-primary transition-all text-slate-900 font-black"
                     />
                 </div>
                 <div className="space-y-3">
@@ -350,12 +521,12 @@ const ChangePasswordForm = () => {
                         value={confirmPassword} 
                         onChange={(e) => setConfirmPassword(e.target.value)} 
                         required 
-                        className="h-14 bg-white/5 border-white/10 rounded-2xl border-2 focus:border-primary transition-all text-white font-black"
+                        className="h-14 bg-slate-50/50 border-slate-100 rounded-2xl border-2 focus:border-primary transition-all text-slate-900 font-black"
                     />
                 </div>
             </div>
             <div className="flex justify-end pt-4">
-                <Button type="submit" className="bg-white text-slate-900 hover:bg-slate-200 px-10 h-14 font-black rounded-22xl transition-all" disabled={loading}>
+                <Button type="submit" className="gradient-primary px-10 h-14 font-black rounded-2xl transition-all shadow-xl shadow-[#2baec1]/20 hover:-translate-y-1" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                     Update Access
                 </Button>

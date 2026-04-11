@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAuthUserBundle } from '@/mvc/services/authService';
 import type { AppRole, Profile } from '@/types';
 
 interface AuthContextType {
@@ -22,8 +23,8 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   permissions: [],
   loading: true,
-  signOut: async () => { },
-  fetchProfile: async () => { },
+  signOut: async () => {},
+  fetchProfile: async () => {},
   hasPermission: () => false,
 });
 
@@ -39,63 +40,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserData = async (userId: string) => {
     try {
-      // Explicitly select columns to avoid PostgREST 406 ambiguity
-      // when many tables have foreign keys referencing profiles(user_id)
-      const [profileRes, roleRes] = await Promise.all([
-        supabase.from('profiles')
-          .select('id, user_id, full_name, email, avatar_url, is_active, created_at, updated_at')
-          .eq('user_id', userId)
-          .maybeSingle(),
-        supabase.from('user_roles').select('id, user_id, role').eq('user_id', userId).maybeSingle(),
-      ]);
-
-      if (profileRes.data) setProfile(profileRes.data as unknown as Profile);
-      if (roleRes.data) {
-        const userRole = (roleRes.data as unknown as { role: AppRole }).role;
-        setRole(userRole);
-
-        // Fetch permissions for this role
-        const { data: perms } = await supabase
-          .from('role_permissions' as any)
-          .select('permissions(name)')
-          .eq('role', userRole) as any;
-
-        if (perms) {
-          setPermissions(perms.map((p: any) => p.permissions.name));
-        }
-      }
+      const bundle = await fetchAuthUserBundle(userId);
+      setProfile(bundle.profile);
+      setRole(bundle.role);
+      setPermissions(bundle.permissions);
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
 
-        if (session?.user) {
-          await (supabase.from('activity_logs') as any).insert([{
-            user_id: session.user.id,
-            action: 'LOGIN',
-            entity_type: 'auth',
-            created_at: new Date().toISOString()
-          }] as any);
-          setTimeout(() => fetchUserData(session.user.id), 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-        setLoading(false);
+      if (nextSession?.user) {
+        void (supabase.from('activity_logs') as any)
+          .insert([
+            {
+              user_id: nextSession.user.id,
+              action: 'LOGIN',
+              entity_type: 'auth',
+              created_at: new Date().toISOString(),
+            },
+          ] as any)
+          .then((res: { error: { message: string } | null }) => {
+            if (res.error) console.warn('[UniHub] activity_logs insert skipped:', res.error.message);
+          });
+        setTimeout(() => fetchUserData(nextSession.user.id), 0);
+      } else {
+        setProfile(null);
+        setRole(null);
+        setPermissions([]);
       }
-    );
+      setLoading(false);
+    });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
+    supabase.auth.getSession().then(({ data: { session: initial } }) => {
+      setSession(initial);
+      setUser(initial?.user ?? null);
+      if (initial?.user) {
+        fetchUserData(initial.user.id);
       }
       setLoading(false);
     });
@@ -109,15 +96,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Supabase signOut error:', error);
     } finally {
-      // Hard reset everything
-      localStorage.clear();
-      sessionStorage.clear();
       setUser(null);
       setSession(null);
       setProfile(null);
       setRole(null);
-      // Force a hard reload to clear all memory states
-      window.location.href = '/';
+      setPermissions([]);
+      window.location.assign('/login');
     }
   };
 
@@ -126,11 +110,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const hasPermission = (permission: string) => {
-    return role === 'admin' || role === 'superadmin' || permissions.includes(permission);
+    return role === 'admin' || permissions.includes(permission);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, permissions, loading, signOut, fetchProfile, hasPermission }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        role,
+        permissions,
+        loading,
+        signOut,
+        fetchProfile,
+        hasPermission,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

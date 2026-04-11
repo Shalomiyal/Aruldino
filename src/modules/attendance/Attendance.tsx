@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ClipboardCheck, Calendar as CalendarIcon, Loader2, Check, X, Clock, AlertCircle, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { isAdminRole, isStaffRole } from '@/lib/roles';
 
 const Attendance = () => {
   const { user, role } = useAuth();
@@ -36,7 +37,7 @@ const Attendance = () => {
     try {
       let query = supabase.from('subjects').select('*').eq('is_active', true);
 
-      if (role === 'admin') {
+      if (isAdminRole(role)) {
         if (selectedDept !== 'none') query = (query as any).eq('department_id', selectedDept);
         if (selectedBatch !== 'none') query = (query as any).eq('batch', selectedBatch);
       } else if (role === 'lecturer') {
@@ -68,12 +69,12 @@ const Attendance = () => {
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
-      if (role !== 'lecturer' && role !== 'admin') setLoading(false);
+      if (!isStaffRole(role)) setLoading(false);
     }
   };
 
   const fetchFilters = async () => {
-    if (role !== 'admin' && role !== 'lecturer') return;
+    if (!isStaffRole(role)) return;
     try {
       const [deptRes, batchRes] = await Promise.all([
         supabase.from('departments' as any).select('*'),
@@ -87,7 +88,7 @@ const Attendance = () => {
   };
 
   const fetchStudents = async () => {
-    if (!selectedSubject || (role !== 'lecturer' && role !== 'admin')) return;
+    if (!selectedSubject || !isStaffRole(role)) return;
     setLoading(true);
     try {
       const { data: enrollData, error: enrollError } = await (supabase
@@ -163,7 +164,7 @@ const Attendance = () => {
   }, [user, role, selectedDept, selectedBatch]);
 
   useEffect(() => {
-    if (selectedSubject && (role === 'lecturer' || role === 'admin')) fetchStudents();
+    if (selectedSubject && isStaffRole(role)) fetchStudents();
     if (role === 'student') fetchStudentRecords();
   }, [selectedSubject, date, role]);
 
@@ -209,11 +210,11 @@ const Attendance = () => {
           <div>
             <h1 className="text-2xl font-bold font-heading text-foreground">Attendance</h1>
             <p className="text-muted-foreground">
-              {(role === 'lecturer' || role === 'admin') ? 'Record daily attendance for your classes' : 'Track your presence in classes'}
+              {isStaffRole(role) ? 'Record daily attendance for your classes' : 'Track your presence in classes'}
             </p>
           </div>
 
-          {(role === 'lecturer' || role === 'admin') && (
+          {isStaffRole(role) && (
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-1.5 shadow-sm">
                 <CalendarIcon className="h-4 w-4 text-primary" />
@@ -267,7 +268,7 @@ const Attendance = () => {
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : (role === 'lecturer' || role === 'admin') ? (
+        ) : isStaffRole(role) ? (
           <Card className="shadow-premium border-none overflow-hidden">
             <CardHeader className="border-b bg-muted/30">
               <div className="flex items-center justify-between">

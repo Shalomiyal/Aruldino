@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { isStaffRole } from '@/lib/roles';
 
 const Exams = () => {
     const { user, role } = useAuth();
@@ -47,14 +48,37 @@ const Exams = () => {
         try {
             // 1. Fetch Subjects
             let subQuery = supabase.from('subjects').select('id, name, code');
-            if (role === 'lecturer') subQuery = (subQuery as any).eq('lecturer_id', user?.id);
+            if (role === 'lecturer') {
+                subQuery = (subQuery as any).eq('lecturer_id', user?.id);
+            } else if (role === 'student') {
+                const { data: enrolls } = await supabase
+                    .from('enrollments')
+                    .select('subject_id')
+                    .eq('student_id', user?.id);
+                const ids = enrolls?.map((e) => e.subject_id) || [];
+                if (ids.length === 0) {
+                    setSubjects([]);
+                    setExams([]);
+                    setLoading(false);
+                    return;
+                }
+                subQuery = (subQuery as any).in('id', ids);
+            }
             const { data: subs } = await (subQuery as any);
             setSubjects(subs || []);
 
             // 2. Fetch Exams
             let examQuery = supabase.from('exams' as any).select('*, subjects(name, code)');
             if (role === 'lecturer') {
-                const subIds = subs?.map(s => s.id) || [];
+                const subIds = subs?.map((s: { id: string }) => s.id) || [];
+                if (subIds.length === 0) {
+                    setExams([]);
+                    setLoading(false);
+                    return;
+                }
+                examQuery = (examQuery as any).in('subject_id', subIds);
+            } else if (role === 'student') {
+                const subIds = subs?.map((s: { id: string }) => s.id) || [];
                 examQuery = (examQuery as any).in('subject_id', subIds);
             }
 
@@ -253,7 +277,7 @@ const Exams = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {(role === 'admin' || role === 'lecturer') && view === 'list' && (
+                        {isStaffRole(role) && view === 'list' && (
                             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                                 <DialogTrigger asChild>
                                     <Button className="gradient-primary">
@@ -394,7 +418,7 @@ const Exams = () => {
                                         )}
 
                                         <div className="pt-2 flex gap-2">
-                                            {role === 'lecturer' || role === 'admin' ? (
+                                            {isStaffRole(role) ? (
                                                 <>
                                                     <Button className="flex-1 gradient-primary" onClick={() => enterGradingMode(exam)}>
                                                         <ClipboardList className="mr-2 h-4 w-4" /> Grading

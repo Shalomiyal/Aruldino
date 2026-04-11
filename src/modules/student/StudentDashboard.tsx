@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { GraduationCap, Timer, FileCheck, Award, MessageSquare } from 'lucide-react';
+import {
+  GraduationCap, Timer, FileCheck, Award, MessageSquare, BookOpen, Calendar, FileText, ClipboardCheck,
+} from 'lucide-react';
 
 const StudentDashboard = () => {
     const { user, profile } = useAuth();
@@ -97,6 +99,34 @@ const StudentDashboard = () => {
                     <QuickStat title="Attendance" value={`${stats.attendance}%`} icon={Award} />
                 </div>
             </div>
+
+            <Card className="border-none shadow-premium bg-gradient-to-r from-primary/5 to-primary/10">
+                <CardHeader>
+                    <CardTitle className="text-lg font-bold font-heading">Your learning</CardTitle>
+                    <CardDescription>Courses, schedule, assignments, and results</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        {[
+                            { to: '/subjects', label: 'Subjects', icon: BookOpen },
+                            { to: '/timetable', label: 'Timetable', icon: Calendar },
+                            { to: '/assignments', label: 'Assignments', icon: FileText },
+                            { to: '/attendance', label: 'Attendance', icon: ClipboardCheck },
+                            { to: '/exams', label: 'Exams', icon: GraduationCap },
+                            { to: '/results', label: 'My results', icon: Award },
+                        ].map(({ to, label, icon: Icon }) => (
+                            <Link
+                                key={to}
+                                to={to}
+                                className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-4 text-center transition-all hover:border-primary/30 hover:shadow-lg"
+                            >
+                                <Icon className="mb-2 h-6 w-6 text-primary" />
+                                <span className="text-xs font-bold uppercase tracking-tight text-slate-700">{label}</span>
+                            </Link>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">

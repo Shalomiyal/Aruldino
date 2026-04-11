@@ -188,30 +188,30 @@ const SystemAdmin = () => {
 
             {/* Header with Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="border-0 shadow-xl bg-gradient-to-br from-[#ff8c00]/20 to-slate-800/80 backdrop-blur-xl">
+                <Card className="border-0 shadow-xl bg-gradient-to-br from-[#2baec1]/20 to-slate-800/80 backdrop-blur-xl">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-[#ff8c00]">Total Logins</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-[#2baec1]">Total Logins</p>
                                 <h3 className="text-3xl font-black text-white mt-1">{loginSessions.length}</h3>
                             </div>
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-[#ff8c00] to-[#ff8c00]/60 shadow-lg shadow-[#ff8c00]/30">
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-[#2baec1] to-[#2baec1]/60 shadow-lg shadow-[#2baec1]/30">
                                 <LogIn className="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-xl bg-gradient-to-br from-[#00b7eb]/20 to-slate-800/80 backdrop-blur-xl">
+                <Card className="border-0 shadow-xl bg-gradient-to-br from-[#2e406a]/20 to-slate-800/80 backdrop-blur-xl">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-[#00b7eb]">Active Users</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-[#2e406a]">Active Users</p>
                                 <h3 className="text-3xl font-black text-white mt-1">
                                     {new Set(loginSessions.map(s => s.user_id)).size}
                                 </h3>
                             </div>
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-[#00b7eb] to-[#00b7eb]/60 shadow-lg shadow-[#00b7eb]/30">
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-[#2e406a] to-[#2e406a]/60 shadow-lg shadow-[#2e406a]/30">
                                 <Users className="h-6 w-6 text-white" />
                             </div>
                         </div>
@@ -249,11 +249,11 @@ const SystemAdmin = () => {
 
             {/* Login Sessions Table */}
             <Card className="border-0 shadow-2xl bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-xl overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#ff8c00] via-[#00b7eb] to-[#ff8c00]"></div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] via-[#2e406a] to-[#2baec1]"></div>
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between text-white">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-gradient-to-br from-[#ff8c00] to-[#ff8c00]/60 shadow-lg">
+                            <div className="p-2 rounded-xl bg-gradient-to-br from-[#2baec1] to-[#2baec1]/60 shadow-lg">
                                 <Shield className="h-5 w-5 text-white" />
                             </div>
                             <span className="text-lg font-bold">Login Sessions Tracker</span>
@@ -281,7 +281,7 @@ const SystemAdmin = () => {
                                 placeholder="Search by name or email..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:border-[#00b7eb]/50"
+                                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:border-[#2baec1]/50"
                             />
                         </div>
                         <div className="flex items-center gap-2">
@@ -289,7 +289,7 @@ const SystemAdmin = () => {
                             <select
                                 value={filterAction}
                                 onChange={(e) => setFilterAction(e.target.value)}
-                                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#00b7eb]/50"
+                                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#2baec1]/50"
                             >
                                 <option value="all">All Actions</option>
                                 <option value="LOGIN">Logins</option>
@@ -305,9 +305,9 @@ const SystemAdmin = () => {
                             return (
                                 <div
                                     key={session.id}
-                                    className="group flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[#00b7eb]/30 transition-all duration-300 hover:scale-[1.01]"
+                                    className="group flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[#2e406a]/30 transition-all duration-300 hover:scale-[1.01]"
                                 >
-                                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#00b7eb] to-[#00b7eb]/60 flex items-center justify-center text-white shadow-lg group-hover:shadow-[#00b7eb]/50 transition-shadow">
+                                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#2e406a] to-[#2e406a]/60 flex items-center justify-center text-white shadow-lg group-hover:shadow-[#2e406a]/50 transition-shadow">
                                         <ActionIcon className="h-5 w-5" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -337,7 +337,7 @@ const SystemAdmin = () => {
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="text-white/40 hover:text-[#00b7eb] hover:bg-[#00b7eb]/10"
+                                        className="text-white/40 hover:text-[#2baec1] hover:bg-[#2baec1]/10"
                                     >
                                         <Eye className="h-4 w-4" />
                                     </Button>

@@ -17,7 +17,7 @@ interface AnalyticsChartsProps {
 }
 
 const AnalyticsCharts = ({ performanceData, attendanceStats, workloadData, summary, role }: AnalyticsChartsProps) => {
-  const COLORS = ['#2baec1', '#2e406a', '#ff8c00', '#00b7eb'];
+  const COLORS = ['#2baec1', '#2e406a', '#2baec1AA', '#2e406aAA'];
 
   return (
     <div className="grid gap-6">
@@ -60,7 +60,7 @@ const AnalyticsCharts = ({ performanceData, attendanceStats, workloadData, summa
               <YAxis />
               <Tooltip />
               <Bar dataKey="present_count" fill="#2e406a" />
-              <Bar dataKey="absent_count" fill="#ff8c00" />
+              <Bar dataKey="absent_count" fill="#2baec1" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -71,7 +71,7 @@ const AnalyticsCharts = ({ performanceData, attendanceStats, workloadData, summa
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-[#00b7eb]" />
+            <Briefcase className="h-5 w-5 text-[#2e406a]" />
               Lecturer Workload Distribution
             </CardTitle>
             <CardDescription>Subject assignments per lecturer</CardDescription>
@@ -118,7 +118,7 @@ const AnalyticsCharts = ({ performanceData, attendanceStats, workloadData, summa
           title="Active Subjects"
           value={summary.activeSubjects}
           icon={FileText}
-          color="#ff8c00"
+          color="#2baec1"
         />
       </div>
     </div>

@@ -119,20 +119,10 @@ const Index = () => {
                   </Link>
                   <Button 
                     variant="ghost" 
-                    onClick={async () => {
-                      try {
-                        await signOut();
-                        toast({
-                          title: "Signed Out",
-                          description: "You have been logged out successfully.",
-                        });
-                      } catch (error) {
-                        toast({
-                          title: "Sign out failed",
-                          description: "An error occurred while signing out.",
-                          variant: "destructive"
-                        });
-                      }
+                    type="button"
+                    onClick={() => {
+                      // signOut() hard-navigates; don't await/toast here.
+                      void signOut();
                     }}
                     className="text-slate-600 hover:text-red-600 hover:bg-red-50 transition-all duration-300"
                   >

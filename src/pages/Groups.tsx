@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -10,8 +10,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Plus, MessageSquare, UserPlus, MoreVertical, Send,
-  Search, ArrowLeft, Trash2, Edit2, UserX, UserCheck,
-  Users, User, ShieldAlert, Heart, Loader2
+  Search, ArrowLeft, Trash2, UserCheck,
+  Users, ShieldAlert, Heart, Loader2, Paperclip, FileArchive, File as FileIcon, X,
+  Crown, LogOut, UserMinus,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription,
@@ -25,6 +26,105 @@ import {
   DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  loadSocialBasics,
+  loadGroupMembersMerged,
+  fetchDirectMessagesForChat,
+  fetchGroupCreatorProfile,
+  createGroupRecord,
+  addGroupMember,
+  removeGroupMemberRow,
+  updateGroupMemberRole,
+  insertDirectMessage,
+  uploadChatMedia,
+  markChatRead,
+  deleteChatContactPair,
+  upsertChatContact,
+  insertChatContactRequest,
+} from '@/mvc/services/socialHubService';
+
+/** Max attachment size (keep in sync with storage.buckets file_size_limit for `chat-media`). */
+const CHAT_MAX_FILE_BYTES = 50 * 1024 * 1024;
+
+/** randomUUID() is missing on HTTP (non-localhost); LAN dev URLs like http://192.168.x.x need a fallback. */
+function randomStorageId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function validateChatAttachment(file: File): string | null {
+  if (file.size <= 0) return 'File is empty.';
+  if (file.size > CHAT_MAX_FILE_BYTES) {
+    return `Files must be ${CHAT_MAX_FILE_BYTES / (1024 * 1024)}MB or smaller.`;
+  }
+  return null;
+}
+
+function MessageAttachmentView({
+  path,
+  mime,
+  name,
+}: {
+  path: string;
+  mime: string | null;
+  name: string | null;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const isImage = Boolean(mime?.startsWith('image/'));
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase.storage.from('chat-media').createSignedUrl(path, 3600);
+      if (!cancelled) {
+        if (!error && data?.signedUrl) setUrl(data.signedUrl);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+
+  const openDownload = useCallback(async () => {
+    const { data, error } = await supabase.storage.from('chat-media').createSignedUrl(path, 3600);
+    if (!error && data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }, [path]);
+
+  if (isImage) {
+    if (loading) return <p className="text-[10px] opacity-70 mt-1">Loading image…</p>;
+    if (url) {
+      return (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block max-w-[min(280px,70vw)]">
+          <img src={url} alt={name || 'Attachment'} className="rounded-xl border border-white/20 max-h-56 w-auto object-contain" />
+        </a>
+      );
+    }
+    return <p className="text-[10px] opacity-70">Could not load image.</p>;
+  }
+
+  const lower = (name || '').toLowerCase();
+  const isZip =
+    mime === 'application/zip' ||
+    mime === 'application/x-zip-compressed' ||
+    lower.endsWith('.zip');
+  const FileGlyph = isZip ? FileArchive : FileIcon;
+
+  return (
+    <button
+      type="button"
+      onClick={() => void openDownload()}
+      className="mt-2 flex items-center gap-2 rounded-xl border border-current/20 bg-black/5 px-3 py-2 text-left text-xs font-semibold transition hover:bg-black/10"
+    >
+      <FileGlyph className="h-4 w-4 shrink-0" />
+      <span className="truncate">{name || 'File'}</span>
+    </button>
+  );
+}
 
 const Groups = () => {
   const { user } = useAuth();
@@ -46,6 +146,10 @@ const Groups = () => {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedChatRef = useRef<typeof selectedChat>(null);
+  const [pendingFile, setPendingFile] = useState<{ file: File; previewUrl?: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Modal states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -57,63 +161,20 @@ const Groups = () => {
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [peerSearch, setPeerSearch] = useState('');
 
+  const [groupCreator, setGroupCreator] = useState<{ full_name: string; user_id: string } | null>(null);
+  const [isAddMembersOpen, setIsAddMembersOpen] = useState(false);
+  const [isGroupManageOpen, setIsGroupManageOpen] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState('');
+
   const fetchBasics = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Fetch Groups
-      const { data: groupData } = await (supabase.from('groups' as any)
-        .select('*, group_members!inner(*)')
-        .order('last_message_at', { ascending: false }) as any);
-      setGroups(groupData || []);
-
-      // 2. Fetch Contacts (Direct Messages)
-      // Note: Using explicit hints for foreign keys to avoid 406 Not Acceptable
-      const { data: contactData, error: contactError } = await (supabase.from('chat_contacts' as any)
-        .select(`
-          *,
-          contact:profiles!chat_contacts_contact_id_fkey(user_id, full_name, avatar_url, email),
-          owner:profiles!chat_contacts_user_id_fkey(user_id, full_name, avatar_url, email)
-        `)
-        .or(`user_id.eq.${user?.id},contact_id.eq.${user?.id}`)
-        .order('last_message_at', { ascending: false }) as any);
-
-      if (contactError) throw contactError;
-
-      const formattedContacts = contactData?.map((c: any) => {
-        const other = c.user_id === user?.id ? c.contact : c.owner;
-        return { ...c, profile: other };
-      }).filter((c: any) => c.profile) || []; // Filter out any with missing profiles
-      setContacts(formattedContacts);
-
-      // 3. Fetch All Users for Search
-      const { data: userData } = await supabase.from('profiles').select('user_id, full_name, email, avatar_url');
-      setAllUsers(userData || []);
-
-      // 4. Initialize Unread Indications (Persistent Database Check)
-      const newUnread: Record<string, boolean> = {};
-
-      // Check Groups
-      groupData?.forEach((g: any) => {
-        const myMember = g.group_members?.find((m: any) => m.user_id === user?.id);
-        if (g.last_message_at && myMember?.last_read_at &&
-          new Date(g.last_message_at) > new Date(myMember.last_read_at) &&
-          g.sender_id !== user?.id) {
-          newUnread[g.id] = true;
-        }
-      });
-
-      // Check Direct Chats
-      formattedContacts?.forEach((c: any) => {
-        const myReadAt = c.user_id === user?.id ? c.user_last_read_at : c.contact_last_read_at;
-        if (c.last_message_at && myReadAt &&
-          new Date(c.last_message_at) > new Date(myReadAt) &&
-          c.sender_id !== user?.id) {
-          newUnread[c.id] = true;
-        }
-      });
-      setUnreadMap(newUnread);
-
+      const payload = await loadSocialBasics(user.id);
+      setGroups(payload.groups);
+      setContacts(payload.contacts);
+      setAllUsers(payload.directoryUsers);
+      setUnreadMap(payload.unreadMap);
     } catch (error: any) {
       console.error('Fetch Basics Error:', error);
       toast({ title: 'Fetch failed', description: error.message, variant: 'destructive' });
@@ -122,27 +183,25 @@ const Groups = () => {
     }
   };
 
+  const loadGroupMembersForGroup = async (groupId: string) => {
+    try {
+      const merged = await loadGroupMembersMerged(groupId);
+      setMembers(merged);
+    } catch (gmErr: any) {
+      console.error('group_members fetch:', gmErr);
+      toast({ title: 'Could not load group members', description: gmErr.message, variant: 'destructive' });
+      setMembers([]);
+    }
+  };
+
   const fetchMessages = async (chat: any) => {
     if (!user || !chat) return;
     try {
-      let query = supabase.from('direct_messages' as any).select('*, profiles!direct_messages_sender_id_fkey(full_name, avatar_url)');
-
-      if (chat.user_id) { // Direct Chat
-        query = query.or(`and(sender_id.eq.${user?.id},receiver_id.eq.${chat.user_id}),and(sender_id.eq.${chat.user_id},receiver_id.eq.${user?.id})`);
-      } else { // Group Chat
-        query = query.eq('group_id', chat.id);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: true });
-      if (error) throw error;
-      setMessages(data || []);
+      const data = await fetchDirectMessagesForChat(chat, user.id);
+      setMessages(data);
 
       if (!chat.user_id) {
-        // Fetch group members if it's a group
-        const { data: mb } = await (supabase.from('group_members' as any)
-          .select('*, profiles(full_name, email, avatar_url)')
-          .eq('group_id', chat.id) as any);
-        setMembers(mb || []);
+        await loadGroupMembersForGroup(chat.id);
       }
     } catch (error: any) {
       console.error('Msg fetch error:', error);
@@ -150,11 +209,35 @@ const Groups = () => {
   };
 
   useEffect(() => {
+    if (!selectedChat?.id) {
+      setGroupCreator(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const p = await fetchGroupCreatorProfile(selectedChat.id);
+      if (!cancelled) setGroupCreator(p ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChat?.id]);
+
+  useEffect(() => {
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
+
+  useEffect(() => {
     if (user) fetchBasics();
 
     const contactSub = supabase.channel('social_updates')
       .on('postgres_changes', { event: '*', table: 'chat_contacts', schema: 'public' }, () => fetchBasics())
       .on('postgres_changes', { event: '*', table: 'groups', schema: 'public' }, () => fetchBasics())
+      .on('postgres_changes', { event: '*', table: 'group_members', schema: 'public' }, () => {
+        void fetchBasics();
+        const c = selectedChatRef.current;
+        if (c?.id) void fetchMessages(c);
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(contactSub); };
@@ -181,7 +264,7 @@ const Groups = () => {
         dbId = relationship?.id;
       }
       if (dbId) {
-        await (supabase.rpc('mark_chat_as_read', { chat_id: dbId, is_group: isGroup }) as any);
+        await markChatRead(dbId, isGroup);
       }
     };
     markRead();
@@ -232,9 +315,30 @@ const Groups = () => {
     return () => { supabase.removeChannel(msgSub); };
   }, [selectedChat, user]);
 
+  const clearPendingFile = () => {
+    if (pendingFile?.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl);
+    setPendingFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const onPickAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const err = validateChatAttachment(file);
+    if (err) {
+      toast({ title: 'Invalid file', description: err, variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
+    if (pendingFile?.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl);
+    const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined;
+    setPendingFile({ file, previewUrl });
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedChat || !user) return;
+    const text = newMessage.trim();
+    if ((!text && !pendingFile) || !selectedChat || !user || uploading) return;
 
     // Check relationship status for direct chats
     if (!selectedChat.id) {
@@ -249,21 +353,50 @@ const Groups = () => {
       }
     }
 
+    setUploading(true);
     try {
-      const payload: any = {
-        sender_id: user?.id,
-        content: newMessage.trim()
+      let attachment_path: string | undefined;
+      let attachment_name: string | undefined;
+      let attachment_mime: string | undefined;
+
+      if (pendingFile) {
+        const f = pendingFile.file;
+        const v = validateChatAttachment(f);
+        if (v) {
+          toast({ title: 'Invalid file', description: v, variant: 'destructive' });
+          return;
+        }
+        const ext =
+          f.name.includes('.') ? f.name.split('.').pop()!.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'bin' : 'bin';
+        const path = `${user.id}/${randomStorageId()}.${ext}`;
+        const { error: upErr } = await uploadChatMedia(path, f);
+        if (upErr) throw upErr;
+        attachment_path = path;
+        attachment_name = f.name;
+        attachment_mime = f.type && f.type.length > 0 ? f.type : 'application/octet-stream';
+      }
+
+      const payload: Record<string, unknown> = {
+        sender_id: user.id,
+        content: text || '',
       };
+      if (attachment_path) {
+        payload.attachment_path = attachment_path;
+        payload.attachment_name = attachment_name;
+        payload.attachment_mime = attachment_mime;
+      }
 
       if (selectedChat.id) payload.group_id = selectedChat.id;
       else payload.receiver_id = selectedChat.user_id;
 
-      const { error } = await supabase.from('direct_messages' as any).insert([payload]);
-      if (error) throw error;
+      await insertDirectMessage(payload);
       setNewMessage('');
+      clearPendingFile();
       fetchMessages(selectedChat);
     } catch (error: any) {
       toast({ title: 'Send failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -271,31 +404,13 @@ const Groups = () => {
     if (!user) return;
     try {
       if (action === 'remove') {
-        await (supabase.from('chat_contacts' as any).delete().or(`and(user_id.eq.${user?.id},contact_id.eq.${targetId}),and(user_id.eq.${targetId},contact_id.eq.${user?.id})`) as any);
+        await deleteChatContactPair(user.id, targetId);
       } else {
         let status: 'pending' | 'accepted' | 'blocked';
         if (action === 'request') status = 'pending';
         else if (action === 'accept') status = 'accepted';
         else status = 'blocked';
-
-        // Find existing record to update correctly
-        const { data: existing } = await (supabase.from('chat_contacts' as any)
-          .select('*')
-          .or(`and(user_id.eq.${user?.id},contact_id.eq.${targetId}),and(user_id.eq.${targetId},contact_id.eq.${user?.id})`)
-          .maybeSingle() as any);
-
-        if (existing) {
-          await supabase.from('chat_contacts' as any).update({
-            status,
-            updated_at: new Date().toISOString()
-          }).eq('id', existing.id);
-        } else {
-          await supabase.from('chat_contacts' as any).insert({
-            user_id: user?.id,
-            contact_id: targetId,
-            status: status
-          });
-        }
+        await upsertChatContact(user.id, targetId, status);
       }
       toast({ title: 'Success', description: `User relationship updated.` });
       fetchBasics();
@@ -309,11 +424,7 @@ const Groups = () => {
     try {
       const existing = contacts.find(c => c.profile?.user_id === profile.user_id);
       if (!existing) {
-        await supabase.from('chat_contacts' as any).insert({
-          user_id: user?.id,
-          contact_id: profile.user_id,
-          status: 'pending'
-        });
+        await insertChatContactRequest(user.id, profile.user_id);
         toast({ title: 'Chat Request Sent', description: `A connection request has been sent to ${profile.full_name}.` });
       }
       setSelectedChat(profile);
@@ -328,33 +439,206 @@ const Groups = () => {
     e.preventDefault();
     if (!user) return;
     try {
-      const { data, error } = await (supabase.from('groups' as any).insert([{
-        name: newGroupName,
-        description: newGroupDesc,
-        created_by: user?.id
-      }]).select() as any);
-
-      if (error) throw error;
-
-      // Auto-join the creator to the group
-      if (data && data[0]) {
-        await supabase.from('group_members' as any).insert({
-          group_id: data[0].id,
-          user_id: user?.id,
-          role: 'admin'
-        });
-      }
+      const row = await createGroupRecord(newGroupName, newGroupDesc, user.id);
+      if (!row) throw new Error('Group was not created');
 
       setIsCreateOpen(false);
       setNewGroupName('');
       setNewGroupDesc('');
       toast({ title: 'Group Created', description: `Welcome to ${newGroupName}!` });
-      setSelectedChat(data[0]);
+      setChatType('groups');
+      setSelectedChat(row);
       fetchBasics();
     } catch (error: any) {
       toast({ title: 'Creation failed', description: error.message, variant: 'destructive' });
     }
   };
+
+  const isGroupAdmin = Boolean(
+    selectedChat?.id && user && members.some((m: any) => m.user_id === user.id && m.role === 'admin')
+  );
+  const adminCount = members.filter((m: any) => m.role === 'admin').length;
+
+  const memberUserIds = new Set(members.map((m: any) => m.user_id));
+
+  const handleAddMemberToGroup = async (peerUserId: string) => {
+    if (!selectedChat?.id || !user) return;
+    if (memberUserIds.has(peerUserId)) {
+      toast({ title: 'Already in group', variant: 'destructive' });
+      return;
+    }
+    try {
+      await addGroupMember(selectedChat.id, peerUserId);
+      toast({ title: 'Member added', description: 'They can now see this group chat.' });
+      setIsAddMembersOpen(false);
+      setAddMemberSearch('');
+      await fetchMessages(selectedChat);
+      fetchBasics();
+    } catch (error: any) {
+      toast({ title: 'Could not add member', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleRemoveMemberFromGroup = async (rowId: string, displayName: string) => {
+    if (!selectedChat?.id) return;
+    if (!window.confirm(`Remove ${displayName} from this group?`)) return;
+    try {
+      await removeGroupMemberRow(rowId);
+      toast({ title: 'Member removed' });
+      await fetchMessages(selectedChat);
+      fetchBasics();
+    } catch (error: any) {
+      toast({ title: 'Remove failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleSetMemberRole = async (rowId: string, role: 'admin' | 'member') => {
+    if (!selectedChat?.id) return;
+    try {
+      await updateGroupMemberRole(rowId, role);
+      toast({ title: role === 'admin' ? 'Now a group admin' : 'Role updated' });
+      await fetchMessages(selectedChat);
+      fetchBasics();
+    } catch (error: any) {
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!selectedChat?.id || !user) return;
+    const row = members.find((m: any) => m.user_id === user.id);
+    if (!row) return;
+    if (row.role === 'admin' && adminCount <= 1) {
+      toast({
+        title: 'Cannot leave',
+        description: 'Make someone else an admin first, or delete the group from the database.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!window.confirm('Leave this group? You will need to be re-added to return.')) return;
+    try {
+      await removeGroupMemberRow(row.id);
+      toast({ title: 'You left the group' });
+      setSelectedChat(null);
+      setIsGroupManageOpen(false);
+      fetchBasics();
+    } catch (error: any) {
+      toast({ title: 'Leave failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const renderAddMembersPicker = () => (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or email…"
+          className="pl-9 h-11 bg-muted/30 border-none rounded-xl"
+          value={addMemberSearch}
+          onChange={(e) => setAddMemberSearch(e.target.value)}
+        />
+      </div>
+      <ScrollArea className="h-64 rounded-xl border p-2">
+        <div className="space-y-1">
+          {allUsers
+            .filter((u) => u.user_id !== user?.id && !memberUserIds.has(u.user_id))
+            .filter(
+              (u) =>
+                u.full_name?.toLowerCase().includes(addMemberSearch.toLowerCase()) ||
+                u.email?.toLowerCase().includes(addMemberSearch.toLowerCase())
+            )
+            .map((u) => (
+              <div
+                key={u.user_id}
+                className="flex items-center justify-between gap-2 rounded-xl p-2 hover:bg-muted/50"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={u.avatar_url} />
+                    <AvatarFallback>{u.full_name?.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{u.full_name}</p>
+                    <p className="truncate text-[10px] text-muted-foreground">{u.email}</p>
+                  </div>
+                </div>
+                <Button size="sm" className="shrink-0 rounded-full" onClick={() => void handleAddMemberToGroup(u.user_id)}>
+                  Add
+                </Button>
+              </div>
+            ))}
+          {allUsers.filter((u) => u.user_id !== user?.id && !memberUserIds.has(u.user_id)).length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">Everyone is already here.</p>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
+  const renderMemberRows = (compact?: boolean) => (
+    <div className={compact ? 'space-y-2' : 'space-y-3'}>
+      {members.map((m: any) => {
+        const isSelf = m.user_id === user?.id;
+        const isRowAdmin = m.role === 'admin';
+        const canDemote = !(isRowAdmin && adminCount <= 1);
+        return (
+          <div
+            key={m.id}
+            className={`flex items-center gap-2 rounded-xl border border-transparent ${compact ? 'p-2' : 'p-3'} hover:bg-muted/40`}
+          >
+            <Avatar className="h-9 w-9 shrink-0">
+              <AvatarImage src={m.profiles?.avatar_url} />
+              <AvatarFallback>{m.profiles?.full_name?.slice(0, 1)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-xs font-bold">{m.profiles?.full_name || 'Member'}</p>
+                {isRowAdmin && (
+                  <Badge variant="secondary" className="h-4 gap-0.5 px-1.5 text-[8px] font-bold uppercase">
+                    <Crown className="h-2.5 w-2.5" /> Admin
+                  </Badge>
+                )}
+                {groupCreator?.user_id === m.user_id && (
+                  <Badge variant="outline" className="h-4 px-1.5 text-[8px]">
+                    Creator
+                  </Badge>
+                )}
+              </div>
+              <p className="truncate text-[9px] text-muted-foreground">{m.profiles?.email}</p>
+            </div>
+            {isGroupAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {!isSelf && isRowAdmin && canDemote && (
+                    <DropdownMenuItem onClick={() => void handleSetMemberRole(m.id, 'member')}>
+                      Remove admin
+                    </DropdownMenuItem>
+                  )}
+                  {!isSelf && !isRowAdmin && (
+                    <DropdownMenuItem onClick={() => void handleSetMemberRole(m.id, 'admin')}>Make admin</DropdownMenuItem>
+                  )}
+                  {!isSelf && (
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => void handleRemoveMemberFromGroup(m.id, m.profiles?.full_name || 'Member')}
+                    >
+                      <UserMinus className="mr-2 h-4 w-4" /> Remove from group
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <DashboardLayout>
@@ -364,7 +648,7 @@ const Groups = () => {
           <div className="p-4 border-b space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold font-heading text-primary flex items-center gap-2">
-                SAMS Social
+                UniHub Social
               </h2>
               <div className="flex gap-2">
                 <Button size="icon" variant="ghost" onClick={() => setIsSearchOpen(true)} className="rounded-full hover:bg-primary/10">
@@ -376,7 +660,7 @@ const Groups = () => {
               </div>
             </div>
 
-            <Tabs defaultValue="direct" onValueChange={(v) => setChatType(v as any)}>
+            <Tabs value={chatType} onValueChange={(v) => setChatType(v as 'groups' | 'direct')}>
               <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50 rounded-xl">
                 <TabsTrigger value="direct" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">Direct</TabsTrigger>
                 <TabsTrigger value="groups" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">Groups</TabsTrigger>
@@ -444,7 +728,10 @@ const Groups = () => {
                 groups.map(group => (
                   <button
                     key={group.id}
-                    onClick={() => setSelectedChat(group)}
+                    onClick={() => {
+                      setChatType('groups');
+                      setSelectedChat(group);
+                    }}
                     className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${selectedChat?.id === group.id
                       ? 'bg-primary text-primary-foreground shadow-lg scale-[1.02]'
                       : 'hover:bg-muted/50'
@@ -463,7 +750,8 @@ const Groups = () => {
                         {unreadMap[group.id] && selectedChat?.id !== group.id && <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
                       </div>
                       <p className={`text-xs truncate ${selectedChat?.id === group.id ? 'text-primary-foreground/70' : 'text-muted-foreground'} ${unreadMap[group.id] && selectedChat?.id !== group.id ? 'font-bold' : ''}`}>
-                        {group.last_message_content || `Circle of ${members.length || '--'} members`}
+                        {group.last_message_content ||
+                          `Circle of ${Array.isArray(group.group_members) ? group.group_members.length : '—'} members`}
                       </p>
                     </div>
                   </button>
@@ -487,8 +775,18 @@ const Groups = () => {
                   </Avatar>
                   <div>
                     <h3 className="font-bold font-heading text-foreground leading-none mb-1">{selectedChat.name || selectedChat.full_name}</h3>
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      {selectedChat.id ? `${members.length} members` : (contacts.find(c => (c as any).profile?.user_id === selectedChat.user_id)?.status || 'active').toUpperCase()}
+                    <p className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                      {selectedChat.id ? (
+                        <>
+                          <span>{members.length} members</span>
+                          <span>·</span>
+                          <span>Created by {groupCreator?.full_name ?? '…'}</span>
+                          <span>·</span>
+                          <span className="font-semibold text-primary/80">{isGroupAdmin ? 'You are admin' : 'Member'}</span>
+                        </>
+                      ) : (
+                        (contacts.find((c) => (c as any).profile?.user_id === selectedChat.user_id)?.status || 'active').toUpperCase()
+                      )}
                     </p>
                   </div>
                 </div>
@@ -516,10 +814,28 @@ const Groups = () => {
                   )}
                   {selectedChat.id && (
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="h-5 w-5" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-full">
+                          <MoreVertical className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem><Edit2 className="h-4 w-4 mr-2" /> Settings</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive"><Trash2 className="h-4 w-4 mr-2" /> Leave Circle</DropdownMenuItem>
+                        {isGroupAdmin && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setIsAddMembersOpen(true);
+                              setAddMemberSearch('');
+                            }}
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" /> Add members
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => setIsGroupManageOpen(true)}>
+                          <Users className="mr-2 h-4 w-4" /> Group details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => void handleLeaveGroup()}>
+                          <LogOut className="mr-2 h-4 w-4" /> Leave group
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -556,7 +872,14 @@ const Groups = () => {
                                 ? 'bg-primary text-primary-foreground rounded-tr-none'
                                 : 'bg-card text-foreground rounded-tl-none border'
                                 }`}>
-                                {msg.content}
+                                {msg.content ? <p className="whitespace-pre-wrap break-words">{msg.content}</p> : null}
+                                {msg.attachment_path ? (
+                                  <MessageAttachmentView
+                                    path={msg.attachment_path}
+                                    mime={msg.attachment_mime}
+                                    name={msg.attachment_name}
+                                  />
+                                ) : null}
                                 <div className={`text-[8px] mt-1 text-right opacity-60`}>
                                   {msg.created_at ? format(new Date(msg.created_at), 'HH:mm') : '...'}
                                 </div>
@@ -595,16 +918,59 @@ const Groups = () => {
                     )}
                   </div>
                 ) : (
-                  <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-                    <Input
-                      placeholder="Type something amazing..."
-                      className="flex-1 h-12 bg-muted/30 border-none rounded-2xl px-6 focus-visible:ring-primary shadow-inner text-sm"
-                      value={newMessage}
-                      onChange={e => setNewMessage(e.target.value)}
-                    />
-                    <Button type="submit" size="icon" className="h-12 w-12 rounded-2xl gradient-primary shadow-premium group-hover:scale-105 transition-transform">
-                      <Send className="h-5 w-5" />
-                    </Button>
+                  <form onSubmit={handleSendMessage} className="space-y-2">
+                    {pendingFile && (
+                      <div className="flex items-center gap-3 rounded-xl border border-dashed border-primary/30 bg-muted/20 p-2 pr-3">
+                        {pendingFile.previewUrl ? (
+                          <img src={pendingFile.previewUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                        ) : (
+                          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary/10">
+                            <FileIcon className="h-7 w-7 text-primary" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold">{pendingFile.file.name}</p>
+                          <p className="text-[10px] text-muted-foreground">Add a caption (optional) and send</p>
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" className="shrink-0 rounded-full" onClick={clearPendingFile}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={onPickAttachment}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-12 w-12 shrink-0 rounded-2xl border-dashed"
+                        disabled={uploading}
+                        onClick={() => fileInputRef.current?.click()}
+                        title={`Attach file (max ${CHAT_MAX_FILE_BYTES / (1024 * 1024)}MB)`}
+                      >
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                      <Input
+                        placeholder={pendingFile ? 'Caption (optional)…' : `Message or attach a file (max ${CHAT_MAX_FILE_BYTES / (1024 * 1024)}MB)…`}
+                        className="flex-1 h-12 bg-muted/30 border-none rounded-2xl px-6 focus-visible:ring-primary shadow-inner text-sm"
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        disabled={uploading}
+                      />
+                      <Button
+                        type="submit"
+                        size="icon"
+                        className="h-12 w-12 rounded-2xl gradient-primary shadow-premium group-hover:scale-105 transition-transform"
+                        disabled={uploading || (!newMessage.trim() && !pendingFile)}
+                      >
+                        {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                      </Button>
+                    </div>
                   </form>
                 )}
               </div>
@@ -626,31 +992,38 @@ const Groups = () => {
           )}
         </div>
 
-        {selectedChat && chatType === 'groups' && (
-          <div className="hidden xl:flex flex-col w-72 h-full border rounded-2xl bg-card shadow-premium overflow-hidden">
-            <div className="p-8 text-center border-b">
-              <Avatar className="h-24 w-24 mx-auto mb-4 border-4 border-primary/10 shadow-lg">
-                <AvatarFallback className="gradient-indigo text-white text-3xl font-bold">{selectedChat.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+        {selectedChat?.id && (
+          <div className="hidden lg:flex flex-col w-[min(100%,24rem)] min-w-[300px] max-w-md h-full border rounded-2xl bg-card shadow-premium overflow-hidden">
+            <div className="border-b p-6 text-center">
+              <Avatar className="mx-auto mb-3 h-20 w-20 border-4 border-primary/10 shadow-lg">
+                <AvatarFallback className="gradient-indigo text-2xl font-bold text-white">
+                  {selectedChat.name?.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
-              <h3 className="font-bold font-heading text-lg">{selectedChat.name}</h3>
-              <p className="text-xs text-muted-foreground mt-2 px-4 italic">"{selectedChat.description || 'No bio provided'}"</p>
+              <h3 className="font-heading text-lg font-bold">{selectedChat.name}</h3>
+              <p className="mt-2 px-2 text-xs italic text-muted-foreground">"{selectedChat.description || 'No description'}"</p>
+              <p className="mt-3 text-[10px] text-muted-foreground">
+                Created by <span className="font-semibold text-foreground">{groupCreator?.full_name ?? '—'}</span>
+              </p>
+              {isGroupAdmin && (
+                <Button
+                  className="mt-4 w-full rounded-xl"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsAddMembersOpen(true);
+                    setAddMemberSearch('');
+                  }}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" /> Add members
+                </Button>
+              )}
             </div>
-            <div className="p-4 flex-1 h-full overflow-hidden flex flex-col">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
-                <Users className="h-3 w-3" /> Members • {members.length}
+            <div className="flex flex-1 flex-col overflow-hidden p-4">
+              <h4 className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary">
+                <Users className="h-3 w-3" /> Members ({members.length})
               </h4>
-              <ScrollArea className="flex-1">
-                <div className="space-y-4">
-                  {members.map(m => (
-                    <div key={m.id} className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8"><AvatarImage src={m.profiles?.avatar_url} /><AvatarFallback>{m.profiles?.full_name?.slice(0, 1)}</AvatarFallback></Avatar>
-                      <div className="flex-1 overflow-hidden">
-                        <p className="text-xs font-bold truncate">{m.profiles?.full_name}</p>
-                        <p className="text-[9px] text-muted-foreground uppercase">{m.role}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <ScrollArea className="flex-1 pr-2">
+                {renderMemberRows()}
               </ScrollArea>
             </div>
           </div>
@@ -674,6 +1047,44 @@ const Groups = () => {
             </div>
             <Button type="submit" className="w-full h-12 gradient-primary font-bold rounded-xl shadow-premium">Launch Hub</Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddMembersOpen} onOpenChange={setIsAddMembersOpen}>
+        <DialogContent className="max-h-[90vh] rounded-3xl border-none shadow-premium sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl">Add to group</DialogTitle>
+            <DialogDescription>Choose people from the directory. They must have a profile in the system.</DialogDescription>
+          </DialogHeader>
+          <div className="pt-2">{renderAddMembersPicker()}</div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isGroupManageOpen} onOpenChange={setIsGroupManageOpen}>
+        <DialogContent className="max-h-[90vh] rounded-3xl border-none shadow-premium sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl">{selectedChat?.name || 'Group'}</DialogTitle>
+            <DialogDescription>
+              Created by {groupCreator?.full_name ?? '—'} · {members.length} members ·{' '}
+              {isGroupAdmin ? 'You can manage members' : 'You are a member'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[55vh] space-y-4 overflow-y-auto pt-2">
+            {isGroupAdmin && (
+              <Button
+                className="w-full rounded-xl"
+                variant="secondary"
+                onClick={() => {
+                  setIsGroupManageOpen(false);
+                  setIsAddMembersOpen(true);
+                  setAddMemberSearch('');
+                }}
+              >
+                <UserPlus className="mr-2 h-4 w-4" /> Add members
+              </Button>
+            )}
+            {renderMemberRows(true)}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building2, BookOpen, ShieldCheck, Clock, LogIn, TrendingUp, Award } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Users, Building2, BookOpen, Trophy, Clock, LogIn, TrendingUp, Award,
+  CalendarRange, Calendar, Layers, UserPlus, GraduationCap, BarChart3, Settings, Shield,
+} from 'lucide-react';
+
 
 const AdminDashboard = () => {
     const [stats, setStats] = useState({ users: 0, depts: 0, subjects: 0, activeGrads: 0 });
@@ -10,19 +15,25 @@ const AdminDashboard = () => {
 
     useEffect(() => {
         const fetchStats = async () => {
-            const [u, d, s, l, logins] = await Promise.all([
-                (supabase.from('profiles') as any).select('id', { count: 'exact' }),
-                (supabase.from('departments' as any) as any).select('id', { count: 'exact' }),
-                supabase.from('subjects').select('id', { count: 'exact' }),
+            const [u, d, s, e, l, logins] = await Promise.all([
+                (supabase.from('profiles') as any).select('id', { count: 'exact', head: true }),
+                (supabase.from('departments' as any) as any).select('id', { count: 'exact', head: true }),
+                supabase.from('subjects').select('id', { count: 'exact', head: true }),
+                (supabase.from('exams' as any) as any).select('id', { count: 'exact', head: true }),
                 (supabase.from('activity_logs') as any).select('*, profiles(full_name)').order('created_at', { ascending: false }).limit(5),
                 (supabase.from('activity_logs') as any).select('*, profiles(full_name)').eq('action', 'LOGIN').order('created_at', { ascending: false }).limit(5)
             ]);
+
+            const firstErr = [u, d, s, e, l, logins].find((r) => r.error)?.error;
+            if (firstErr && import.meta.env.DEV) {
+                console.warn('[UniHub] AdminDashboard Supabase:', firstErr.message, firstErr);
+            }
 
             setStats({
                 users: u.count || 0,
                 depts: d.count || 0,
                 subjects: s.count || 0,
-                activeGrads: 0
+                activeGrads: e.count || 0
             });
             setLogs(l.data || []);
             setRecentLogins(logins.data || []);
@@ -37,8 +48,42 @@ const AdminDashboard = () => {
                 <StatCard3D title="Total Users" value={stats.users} icon={Users} primaryColor="#2baec1" secondaryColor="#2e406a" />
                 <StatCard3D title="Departments" value={stats.depts} icon={Building2} primaryColor="#2e406a" secondaryColor="#2baec1" />
                 <StatCard3D title="Active Courses" value={stats.subjects} icon={BookOpen} primaryColor="#2baec1" secondaryColor="#2e406a" />
-                <StatCard3D title="System Health" value="100%" icon={ShieldCheck} primaryColor="#2baec1" secondaryColor="#2e406a" />
+                <StatCard3D title="Scheduled Exams" value={stats.activeGrads} icon={Trophy} primaryColor="#2baec1" secondaryColor="#2e406a" />
             </div>
+
+            <Card className="relative border border-slate-200 shadow-lg bg-white overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2e406a] to-[#2baec1]" />
+                <CardHeader>
+                    <CardTitle className="text-lg font-bold text-slate-900">Administration</CardTitle>
+                    <CardDescription>
+                        Timetable, courses, structure, and reporting — day-to-day teaching tasks use lecturer/student menus.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {[
+                            { to: '/timetable', label: 'Timetable', icon: CalendarRange },
+                            { to: '/subjects', label: 'Subjects', icon: BookOpen },
+                            { to: '/events', label: 'Events', icon: Calendar },
+                            { to: '/admin/departments', label: 'Departments', icon: Building2 },
+                            { to: '/admin/batches', label: 'Batches', icon: Layers },
+                            { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
+                            { to: '/admin/users', label: 'Users', icon: Settings },
+                            { to: '/analytics', label: 'Reports', icon: BarChart3 },
+                            { to: '/admin/system', label: 'System', icon: Shield },
+                        ].map(({ to, label, icon: Icon }) => (
+                            <Link
+                                key={to}
+                                to={to}
+                                className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-center transition-all hover:border-[#2baec1]/40 hover:bg-white hover:shadow-md"
+                            >
+                                <Icon className="mb-2 h-6 w-6 text-[#2baec1]" />
+                                <span className="text-xs font-semibold text-slate-800">{label}</span>
+                            </Link>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Activity & Logins Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -55,7 +100,7 @@ const AdminDashboard = () => {
                     <CardContent>
                         <div className="space-y-3">
                             {logs.length > 0 ? logs.map((log: any) => (
-                                <div key={log.id} className="group flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-[#ff8c00]/30 transition-all duration-300">
+                                <div key={log.id} className="group flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-[#2baec1]/30 transition-all duration-300">
                                     <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
                                         {log.action.slice(0, 3)}
                                     </div>
@@ -120,7 +165,7 @@ const AdminDashboard = () => {
                         <CampusStatItem label="Total Students" value={stats.users} icon={Users} color="#2baec1" />
                         <CampusStatItem label="Departments" value={stats.depts} icon={Building2} color="#2e406a" />
                         <CampusStatItem label="Active Subjects" value={stats.subjects} icon={BookOpen} color="#2baec1" />
-                        <CampusStatItem label="System Uptime" value="99.9%" icon={ShieldCheck} color="#2baec1" />
+                        <CampusStatItem label="Exam Sessions" value={stats.activeGrads} icon={Trophy} color="#2baec1" />
                     </div>
                 </CardContent>
             </Card>

@@ -18,6 +18,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { isStaffRole } from '@/lib/roles';
+import { fetchAssignmentsBootstrap, fetchAssignmentFilterLists } from '@/mvc/services/assignmentsService';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -53,41 +55,10 @@ const Assignments = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch relevant subjects
-      let subQuery = supabase.from('subjects').select('id, name, code, department_id, batch');
-      if (role === 'lecturer') subQuery = subQuery.eq('lecturer_id', user?.id);
-      const { data: subs } = await (subQuery as any);
-      setSubjects(subs || []);
-
-      // 1.5 Fetch Departments for filtering
-      const { data: depts } = await (supabase.from('departments' as any).select('id, name') as any);
-      setDepartments(depts || []);
-
-      // 2. Fetch assignments
-      let assignQuery = supabase.from('assignments').select('*, subjects(name, code, id, department_id)' as any);
-      if (role === 'lecturer') {
-        const subIds = subs?.map((s: any) => s.id) || [];
-        assignQuery = (assignQuery as any).in('subject_id', subIds);
-      }
-      // For students, they see all but we can filter by enrollment later if needed
-
-      const { data: assigns } = await (assignQuery as any);
-
-      // 3. For students, also fetch their submission status for each assignment
-      if (role === 'student' && assigns) {
-        const { data: mySubmissions } = await supabase
-          .from('submissions')
-          .select('assignment_id, id, marks, submitted_at, file_name')
-          .eq('student_id', user?.id);
-
-        const enriched = assigns.map((a: any) => ({
-          ...a,
-          mySubmission: mySubmissions?.find(s => s.assignment_id === a.id)
-        }));
-        setAssignments(enriched);
-      } else {
-        setAssignments(assigns || []);
-      }
+      const boot = await fetchAssignmentsBootstrap(user?.id, role);
+      setSubjects(boot.subjects);
+      setDepartments(boot.departments);
+      setAssignments(boot.assignments);
     } catch (error: any) {
       toast({ title: 'Fetch failed', description: error.message, variant: 'destructive' });
     } finally {
@@ -97,12 +68,9 @@ const Assignments = () => {
 
   const fetchFilters = async () => {
     try {
-      const [deptRes, batchRes] = await Promise.all([
-        (supabase.from('departments' as any) as any).select('*').order('name'),
-        (supabase.from('batches' as any) as any).select('*').order('name')
-      ]);
-      setDepartments(deptRes.data || []);
-      setBatches(batchRes.data || []);
+      const { departments, batches } = await fetchAssignmentFilterLists();
+      setDepartments(departments);
+      setBatches(batches);
     } catch (err) {
       console.error('Error fetching filters:', err);
     }
@@ -317,7 +285,7 @@ const Assignments = () => {
             )}
           </div>
 
-          {role === 'lecturer' && view === 'list' && (
+          {isStaffRole(role) && view === 'list' && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="gradient-primary">
@@ -457,7 +425,7 @@ const Assignments = () => {
                           Max Marks: <span className="text-foreground">{assignment.max_marks}</span>
                         </div>
 
-                        {role === 'lecturer' ? (
+                        {isStaffRole(role) ? (
                           <div className="flex items-center gap-2">
                             <Button size="sm" variant="outline" onClick={() => viewSubmissions(assignment)}>
                               Submissions
