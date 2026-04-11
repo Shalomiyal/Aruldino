@@ -260,10 +260,17 @@ const Grading = () => {
                                                 <TableCell>
                                                     <Input
                                                         type="number"
+                                                        min={0}
+                                                        max={100}
                                                         className="text-center font-mono font-bold"
-                                                        placeholder="0.0"
+                                                        placeholder="0-100"
                                                         value={grades[student.user_id]?.marks_obtained ?? ''}
-                                                        onChange={(e) => handleMarksChange(student.user_id, e.target.value)}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            if (val === '' || (parseInt(val) >= 0 && parseInt(val) <= 100)) {
+                                                                handleMarksChange(student.user_id, val);
+                                                            }
+                                                        }}
                                                     />
                                                 </TableCell>
                                                 <TableCell className="text-center">

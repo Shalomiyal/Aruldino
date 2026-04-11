@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Clock, MapPin, Loader2, Calendar as CalendarIcon, Filter, Trash2, Sparkles, ImageIcon, Pencil } from 'lucide-react';
+import { Plus, Clock, MapPin, Loader2, Calendar as CalendarIcon, Filter, Trash2, Pencil } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -32,11 +32,8 @@ const Timetable = () => {
 
     // Add/Edit Slot Form
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
-    const [scannedSlots, setScannedSlots] = useState<any[]>([]);
     const [isSaving, setIsSaving] = useState(false);
-    const [isParsing, setIsParsing] = useState(false);
     const [form, setForm] = useState({
         subject_id: '',
         day_of_week: '0',
@@ -115,68 +112,6 @@ const Timetable = () => {
             setFilteredSubjects(filtered);
         }
     }, [form.department_id, subjects]);
-
-    const handleImportImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        toast({
-            title: "Vision AI: Multi-Slot Extraction",
-            description: `Scanning Weekend Grid from "${file.name}"...`,
-        });
-
-        setIsParsing(true);
-        setTimeout(() => {
-            setIsParsing(false);
-
-            // Simulating extraction of ALL slots from the SLIIT weekend image
-            const extracted = [
-                { day_of_week: 5, start_time: "08:30", end_time: "10:30", room: "201L", subject: "Prog. Apps & Frameworks (P)" },
-                { day_of_week: 5, start_time: "10:30", end_time: "12:30", room: "501 MPH", subject: "Database Systems (L/T)" },
-                { day_of_week: 5, start_time: "13:30", end_time: "17:30", room: "501 MPH", subject: "Prog. Apps & Frameworks (L/T)" },
-                { day_of_week: 6, start_time: "08:30", end_time: "10:30", room: "501 MPH", subject: "Network Design & Mgmt (L/T)" },
-                { day_of_week: 6, start_time: "10:30", end_time: "12:30", room: "201L", subject: "Database Systems (P)" },
-                { day_of_week: 6, start_time: "13:30", end_time: "15:30", room: "401LH", subject: "Network Design & Mgmt (P)" },
-                { day_of_week: 6, start_time: "15:30", end_time: "17:30", room: "501 MPH", subject: "IT Project Management (L/T)" },
-                { day_of_week: 6, start_time: "18:30", end_time: "20:30", room: "401LH", subject: "IT Project Management (P)" }
-            ];
-
-            setScannedSlots(extracted);
-            setReviewDialogOpen(true);
-
-            toast({
-                title: "Scan Complete",
-                description: `Successfully recognized ${extracted.length} academic slots.`,
-                className: "bg-green-600 text-white font-black"
-            });
-        }, 3000);
-    };
-
-    const handleBulkSave = async () => {
-        setIsSaving(true);
-        try {
-            const payload = scannedSlots.map(slot => ({
-                subject_id: subjects.find(s => slot.subject.includes(s.name) || slot.subject.includes(s.code))?.id || subjects[0]?.id,
-                day_of_week: slot.day_of_week,
-                start_time: slot.start_time,
-                end_time: slot.end_time,
-                room: slot.room,
-                department_id: selectedDept === 'none' ? null : selectedDept,
-                batch: selectedBatch
-            }));
-
-            const { error } = await supabase.from('timetable').insert(payload);
-            if (error) throw error;
-
-            toast({ title: 'Success', description: `Imported ${payload.length} slots into the schedule.` });
-            setReviewDialogOpen(false);
-            fetchData();
-        } catch (error: any) {
-            toast({ title: 'Batch Import Failed', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsSaving(false);
-        }
-    };
 
     const handleSaveSlot = async (e: React.FormEvent) => {
         e.preventDefault();

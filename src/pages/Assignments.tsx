@@ -638,7 +638,7 @@ const Assignments = () => {
                                     id={`marks-${sub.id}`}
                                     onInput={(e) => {
                                       const val = parseInt((e.target as HTMLInputElement).value);
-                                      if (isNaN(val) return;
+                                      if (isNaN(val)) return;
                                       if (val < 0) (e.target as HTMLInputElement).value = '0';
                                       if (val > 100) (e.target as HTMLInputElement).value = '100';
                                     }}

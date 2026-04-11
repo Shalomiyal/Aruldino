@@ -4,10 +4,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { computeSocialUnreadMap } from '@/mvc/models';
 
-export async function fetchGroupsWithMembership() {
-  const { data, error } = await (supabase.from('groups' as any)
+export async function fetchGroupsWithMembership(userId?: string) {
+  let query = supabase.from('groups' as any)
     .select('*, group_members!inner(*)')
-    .order('last_message_at', { ascending: false }) as any);
+    .order('last_message_at', { ascending: false });
+  
+  if (userId) {
+    query = (query as any).eq('group_members.user_id', userId);
+  }
+  
+  const { data, error } = await (query as any);
   if (error) console.error('[socialHub] groups:', error);
   return data ?? [];
 }
@@ -47,7 +53,7 @@ export type SocialBasicsPayload = {
 };
 
 export async function loadSocialBasics(userId: string): Promise<SocialBasicsPayload> {
-  const groups = await fetchGroupsWithMembership();
+  const groups = await fetchGroupsWithMembership(userId);
   const formattedContacts = await fetchChatContactsForUser(userId);
   const directoryUsers = await fetchDirectoryProfiles();
   const unreadMap = computeSocialUnreadMap(userId, groups, formattedContacts);

@@ -36,12 +36,14 @@ const Enrollments = () => {
     // Form state
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [enrollForm, setEnrollForm] = useState({ studentId: '', subjectId: '' });
+    const [filteredSubjects, setFilteredSubjects] = useState<any[]>([]);
+    const [studentDepts, setStudentDepts] = useState<Record<string, any>>({});
 
     const fetchData = async () => {
         setLoading(true);
         try {
             // 1. Fetch Subjects
-            let subQ = supabase.from('subjects' as any).select('id, name, code');
+            let subQ = supabase.from('subjects' as any).select('id, name, code, department_id');
             if (role === 'lecturer') subQ = subQ.eq('lecturer_id', user?.id);
             
             const { data: subData } = await (subQ as any);
@@ -52,8 +54,15 @@ const Enrollments = () => {
             const { data: stuData } = await supabase.from('user_roles').select('user_id').eq('role', 'student');
             const studentIds = stuData?.map(s => s.user_id) || [];
             if (studentIds.length > 0) {
-                const { data: profs } = await supabase.from('profiles').select('user_id, full_name, email, batch').in('user_id', studentIds);
+                const { data: profs } = await supabase.from('profiles').select('user_id, full_name, email, batch, department_id').in('user_id', studentIds);
                 setStudents(profs || []);
+                
+                // Map student to their department
+                const depts: Record<string, any> = {};
+                profs?.forEach((p: any) => {
+                    if (p.department_id) depts[p.user_id] = p.department_id;
+                });
+                setStudentDepts(depts);
             }
 
             // 3. Fetch Enrollments
@@ -77,6 +86,21 @@ const Enrollments = () => {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Filter subjects based on selected student's department
+    useEffect(() => {
+        if (!enrollForm.studentId) {
+            setFilteredSubjects(subjects);
+            return;
+        }
+        const studentDept = studentDepts[enrollForm.studentId];
+        if (!studentDept) {
+            setFilteredSubjects(subjects);
+        } else {
+            const filtered = subjects.filter(s => !s.department_id || s.department_id === studentDept);
+            setFilteredSubjects(filtered);
+        }
+    }, [enrollForm.studentId, subjects, studentDepts]);
 
     const handleEnroll = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -128,7 +152,7 @@ const Enrollments = () => {
                     </div>
 
                     {role === 'admin' && (
-                        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                        <Dialog open={isAddOpen} onOpenChange={v => { setIsAddOpen(v); if (!v) setEnrollForm({ studentId: '', subjectId: '' }); }}>
                             <DialogTrigger asChild>
                                 <Button className="gradient-primary"><Plus className="mr-2 h-4 w-4" /> New Enrollment</Button>
                             </DialogTrigger>
@@ -140,21 +164,21 @@ const Enrollments = () => {
                                 <form onSubmit={handleEnroll} className="space-y-4 py-2">
                                     <div className="space-y-2">
                                         <Label>Select Student</Label>
-                                        <Select value={enrollForm.studentId} onValueChange={v => setEnrollForm({ ...enrollForm, studentId: v })}>
+                                        <Select value={enrollForm.studentId} onValueChange={v => setEnrollForm({ ...enrollForm, studentId: v, subjectId: '' })}>
                                             <SelectTrigger><SelectValue placeholder="Choose student" /></SelectTrigger>
                                             <SelectContent>
                                                 {students.map(s => (
-                                                    <SelectItem key={s.user_id} value={s.user_id}>{s.full_name} ({s.email})</SelectItem>
+                                                    <SelectItem key={s.user_id} value={s.user_id}>{s.full_name} - {s.batch}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Select Subject</Label>
+                                        <Label>Select Subject <span className="text-[10px] text-muted-foreground">(student's dept)</span></Label>
                                         <Select value={enrollForm.subjectId} onValueChange={v => setEnrollForm({ ...enrollForm, subjectId: v })}>
                                             <SelectTrigger><SelectValue placeholder="Choose subject" /></SelectTrigger>
                                             <SelectContent>
-                                                {subjects.map(s => (
+                                                {filteredSubjects.map(s => (
                                                     <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>
                                                 ))}
                                             </SelectContent>
