@@ -37,6 +37,7 @@ const Assignments = () => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
+  const [lecturerDepts, setLecturerDepts] = useState<any[]>([]);
 
   // Create Assignment Form
   const [creationForm, setCreationForm] = useState({
@@ -46,8 +47,8 @@ const Assignments = () => {
     subject_id: '',
     due_date: '',
     max_marks: '100',
-    dept_id: 'none',
-    batch_name: 'none'
+    dept_id: '',
+    batch_name: ''
   });
   const [editingAssignment, setEditingAssignment] = useState<any>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -59,6 +60,18 @@ const Assignments = () => {
       setSubjects(boot.subjects);
       setDepartments(boot.departments);
       setAssignments(boot.assignments);
+      
+      // Extract unique departments from lecturer's assigned subjects
+      if (role === 'lecturer') {
+        const uniqueDepts = boot.subjects.reduce((acc: any[], s: any) => {
+          if (s.department_id && !acc.find((d: any) => d.id === s.department_id)) {
+            const dept = boot.departments.find((d: any) => d.id === s.department_id);
+            if (dept) acc.push(dept);
+          }
+          return acc;
+        }, []);
+        setLecturerDepts(uniqueDepts);
+      }
     } catch (error: any) {
       toast({ title: 'Fetch failed', description: error.message, variant: 'destructive' });
     } finally {
@@ -84,14 +97,44 @@ const Assignments = () => {
   }, [user, role]);
 
   const filteredSubjects = subjects.filter(s => {
-    const deptMatch = creationForm.dept_id === 'none' || s.department_id === creationForm.dept_id;
-    const batchMatch = creationForm.batch_name === 'none' || s.batch === creationForm.batch_name;
+    const deptMatch = !creationForm.dept_id || s.department_id === creationForm.dept_id;
+    const batchMatch = !creationForm.batch_name || s.batch === creationForm.batch_name;
     return deptMatch && batchMatch;
   });
 
   const handlePostAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsActionLoading(true);
+    
+    // Validate title
+    if (creationForm.title.length > 15) {
+      toast({ title: 'Invalid title', description: 'Title must be 15 characters or less.', variant: 'destructive' });
+      setIsActionLoading(false);
+      return;
+    }
+    
+    // Validate due date
+    if (!creationForm.due_date) {
+      toast({ title: 'Invalid due date', description: 'Please select a due date.', variant: 'destructive' });
+      setIsActionLoading(false);
+      return;
+    }
+    
+    const dueDate = new Date(creationForm.due_date);
+    if (dueDate <= new Date()) {
+      toast({ title: 'Invalid due date', description: 'Due date must be in the future.', variant: 'destructive' });
+      setIsActionLoading(false);
+      return;
+    }
+    
+    // Validate max marks
+    const marks = parseInt(creationForm.max_marks);
+    if (isNaN(marks) || marks < 0 || marks > 100) {
+      toast({ title: 'Invalid marks', description: 'Marks must be between 0 and 100.', variant: 'destructive' });
+      setIsActionLoading(false);
+      return;
+    }
+    
     try {
       const data = {
         title: creationForm.title,
@@ -117,7 +160,7 @@ const Assignments = () => {
 
       setIsCreateDialogOpen(false);
       setEditingAssignment(null);
-      setCreationForm({ title: '', description: '', department_id: '', subject_id: '', due_date: '', max_marks: '100', dept_id: 'none', batch_name: 'none' });
+      setCreationForm({ title: '', description: '', department_id: '', subject_id: '', due_date: '', max_marks: '100', dept_id: role === 'lecturer' && lecturerDepts.length > 0 ? lecturerDepts[0].id : '', batch_name: '' });
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -150,8 +193,8 @@ const Assignments = () => {
       subject_id: assignment.subject_id,
       due_date: assignment.due_date.substring(0, 16), // Format for datetime-local
       max_marks: assignment.max_marks.toString(),
-      dept_id: assignment.subjects?.department_id || 'none', // Set filter to assignment's department
-      batch_name: assignment.subjects?.batch || 'none' // Set filter to assignment's batch
+      dept_id: assignment.subjects?.department_id || '',
+      batch_name: assignment.subjects?.batch || ''
     });
     setIsCreateDialogOpen(true);
   };
@@ -301,11 +344,12 @@ const Assignments = () => {
                 </DialogHeader>
                 <form onSubmit={handlePostAssignment} className="space-y-4 py-2">
                   <div className="space-y-2">
-                    <Label>Title</Label>
+                    <Label>Title <span className="text-[10px] text-muted-foreground">(max 15 chars)</span></Label>
                     <Input
-                      placeholder="e.g. Final Project Proposal"
+                      placeholder="e.g. Final Project"
                       value={creationForm.title}
-                      onChange={e => setCreationForm({ ...creationForm, title: e.target.value })}
+                      onChange={e => setCreationForm({ ...creationForm, title: e.target.value.slice(0, 15) })}
+                      maxLength={15}
                       required
                     />
                   </div>
@@ -316,10 +360,9 @@ const Assignments = () => {
                         value={creationForm.dept_id}
                         onValueChange={v => setCreationForm({ ...creationForm, dept_id: v, subject_id: '' })}
                       >
-                        <SelectTrigger><SelectValue placeholder="All Depts" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">All Departments</SelectItem>
-                          {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          {(role === 'lecturer' ? lecturerDepts : departments).map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -329,9 +372,8 @@ const Assignments = () => {
                         value={creationForm.batch_name}
                         onValueChange={v => setCreationForm({ ...creationForm, batch_name: v, subject_id: '' })}
                       >
-                        <SelectTrigger><SelectValue placeholder="All Batches" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select Batch" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">All Batches</SelectItem>
                           {batches.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
@@ -345,30 +387,38 @@ const Assignments = () => {
                       required
                     >
                       <SelectTrigger><SelectValue placeholder={creationForm.department_id ? "Select Course" : "Choose Dept First"} /></SelectTrigger>
-                      <SelectContent>
-                        {subjects
-                          .filter(s => (creationForm.dept_id === 'none' || s.department_id === creationForm.dept_id) &&
-                            (creationForm.batch_name === 'none' || s.batch === creationForm.batch_name))
-                          .map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.code}) - {s.batch}</SelectItem>)}
-                      </SelectContent>
+<SelectContent>
+                          {subjects
+                            .filter(s => (!creationForm.dept_id || s.department_id === creationForm.dept_id) &&
+                              (!creationForm.batch_name || s.batch === creationForm.batch_name))
+                            .map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.code}) - {s.batch}</SelectItem>)}
+                        </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Due Date</Label>
+                      <Label>Due Date (future only)</Label>
                       <Input
                         type="datetime-local"
+                        min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
                         value={creationForm.due_date}
                         onChange={e => setCreationForm({ ...creationForm, due_date: e.target.value })}
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Max Marks</Label>
+                      <Label>Max Marks (0-100)</Label>
                       <Input
                         type="number"
+                        min={0}
+                        max={100}
                         value={creationForm.max_marks}
-                        onChange={e => setCreationForm({ ...creationForm, max_marks: e.target.value })}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || (parseInt(val) >= 0 && parseInt(val) <= 100)) {
+                            setCreationForm({ ...creationForm, max_marks: val });
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -579,11 +629,19 @@ const Assignments = () => {
                               </DialogHeader>
                               <div className="space-y-4 py-4">
                                 <div className="space-y-2">
-                                  <Label>Marks Obtained (Max: {selectedAssignment.max_marks})</Label>
+                                  <Label>Marks Obtained (0-100)</Label>
                                   <Input
                                     type="number"
+                                    min={0}
+                                    max={100}
                                     defaultValue={sub.marks || 0}
                                     id={`marks-${sub.id}`}
+                                    onInput={(e) => {
+                                      const val = parseInt((e.target as HTMLInputElement).value);
+                                      if (isNaN(val) return;
+                                      if (val < 0) (e.target as HTMLInputElement).value = '0';
+                                      if (val > 100) (e.target as HTMLInputElement).value = '100';
+                                    }}
                                   />
                                 </div>
                                 <div className="space-y-2">
@@ -606,8 +664,8 @@ const Assignments = () => {
                                     }
 
                                     const parsedMarks = parseInt(m);
-                                    if (isNaN(parsedMarks)) {
-                                      toast({ title: 'Invalid marks', description: 'Please enter a valid number.', variant: 'destructive' });
+                                    if (isNaN(parsedMarks) || parsedMarks < 0 || parsedMarks > 100) {
+                                      toast({ title: 'Invalid marks', description: 'Marks must be between 0 and 100.', variant: 'destructive' });
                                       return;
                                     }
 
