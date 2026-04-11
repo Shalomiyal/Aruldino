@@ -983,10 +983,10 @@ const Groups = () => {
               </div>
               <div className="max-w-xs space-y-2">
                 <h3 className="text-2xl font-bold font-heading text-foreground">Social Hub</h3>
-                <p className="text-muted-foreground text-sm">Connect with peers, join study circles, and collaborate in real-time.</p>
+                <p className="text-muted-foreground text-sm">Connect with people, join study circles, and collaborate in real-time.</p>
               </div>
               <Button className="gradient-primary rounded-2xl px-10 py-6 font-bold shadow-premium" onClick={() => setIsSearchOpen(true)}>
-                Find a Peer
+                Find people 
               </Button>
             </div>
           )}
@@ -1091,7 +1091,7 @@ const Groups = () => {
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="rounded-3xl border-none shadow-premium sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl">Find a Peer</DialogTitle>
+            <DialogTitle className="font-heading text-xl">Find poeple</DialogTitle>
             <DialogDescription>Search for classmates by name or email to start a direct connection.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
