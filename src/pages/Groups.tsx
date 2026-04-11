@@ -675,7 +675,7 @@ const Groups = () => {
     <DashboardLayout>
       <div className="flex h-[calc(100vh-140px)] gap-6 animate-fade-in overflow-hidden">
         {/* Unified Sidebar */}
-        <div className={`flex flex-col w-full lg:w-[350px] h-full border rounded-2xl bg-card shadow-premium transition-all ${selectedChat ? 'hidden lg:flex' : 'flex'}`}>
+        <div className={`flex flex-col w-full lg:w-[350px] h-full border rounded-2xl bg-card shadow-[0_8px_30px_rgb0,0,0,0.12] transition-all sticky top-0 z-10 ${selectedChat ? 'hidden lg:flex' : 'flex'}`}>
           <div className="p-4 border-b space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold font-heading text-primary flex items-center gap-2">
