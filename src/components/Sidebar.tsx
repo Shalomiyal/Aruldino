@@ -104,7 +104,7 @@ const Sidebar = ({ sidebarCollapsed, setSidebarCollapsed }: SidebarProps) => {
             variant="ghost"
             size="icon"
             className={cn('hidden shrink-0 rounded-xl lg:flex', sidebarCollapsed && 'mx-auto')}
-            onClick={() => setSidebarCollapsed((c) => !c)}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <ChevronLeft className={cn('h-4 w-4 transition-transform', sidebarCollapsed && 'rotate-180')} />
