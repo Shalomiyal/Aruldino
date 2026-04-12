@@ -2,10 +2,26 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { AdminPageChrome, AdminPageHero, AdminPageStack, AdminBackToDashboard } from '@/components/admin';
 import {
   Users, Building2, BookOpen, Trophy, Clock, LogIn, TrendingUp, Award,
   CalendarRange, Calendar, Layers, UserPlus, GraduationCap, BarChart3, Settings, Shield,
+  LucideIcon,
 } from 'lucide-react';
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: LucideIcon;
+  primaryColor: string;
+  secondaryColor: string;
+}
+
+interface AdminLink {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+}
 
 
 const AdminDashboard = () => {
@@ -42,134 +58,144 @@ const AdminDashboard = () => {
     }, []);
 
     return (
-        <div className="space-y-8">
-            {/* Stats Grid with 3D Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard3D title="Total Users" value={stats.users} icon={Users} primaryColor="#2baec1" secondaryColor="#2e406a" />
-                <StatCard3D title="Departments" value={stats.depts} icon={Building2} primaryColor="#2e406a" secondaryColor="#2baec1" />
-                <StatCard3D title="Active Courses" value={stats.subjects} icon={BookOpen} primaryColor="#2baec1" secondaryColor="#2e406a" />
-                <StatCard3D title="Scheduled Exams" value={stats.activeGrads} icon={Trophy} primaryColor="#2baec1" secondaryColor="#2e406a" />
-            </div>
-
-            <Card className="relative border border-slate-200 shadow-lg bg-white overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2e406a] to-[#2baec1]" />
-                <CardHeader>
-                    <CardTitle className="text-lg font-bold text-slate-900">Administration</CardTitle>
-                    <CardDescription>
-                        Timetable, courses, structure, and reporting — day-to-day teaching tasks use lecturer/student menus.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                        {[
-                            { to: '/timetable', label: 'Timetable', icon: CalendarRange },
-                            { to: '/subjects', label: 'Subjects', icon: BookOpen },
-                            { to: '/events', label: 'Events', icon: Calendar },
-                            { to: '/admin/departments', label: 'Departments', icon: Building2 },
-                            { to: '/admin/batches', label: 'Batches', icon: Layers },
-                            { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
-                            { to: '/admin/users', label: 'Users', icon: Settings },
-                            { to: '/analytics', label: 'Reports', icon: BarChart3 },
-                            { to: '/admin/system', label: 'System', icon: Shield },
-                        ].map(({ to, label, icon: Icon }) => (
-                            <Link
-                                key={to}
-                                to={to}
-                                className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-center transition-all hover:border-[#2baec1]/40 hover:bg-white hover:shadow-md"
-                            >
-                                <Icon className="mb-2 h-6 w-6 text-[#2baec1]" />
-                                <span className="text-xs font-semibold text-slate-800">{label}</span>
-                            </Link>
-                        ))}
+        <AdminPageChrome>
+            <AdminPageHero 
+                title="Admin Dashboard" 
+                description="Manage your campus operations"
+                icon={<Settings className="h-5 w-5 text-white" />}
+            />
+            <AdminPageStack>
+                <AdminBackToDashboard />
+                <div className="space-y-8">
+                    {/* Stats Grid with 3D Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <StatCard3D title="Total Users" value={stats.users} icon={Users} primaryColor="#2baec1" secondaryColor="#2e406a" />
+                        <StatCard3D title="Departments" value={stats.depts} icon={Building2} primaryColor="#2e406a" secondaryColor="#2baec1" />
+                        <StatCard3D title="Active Courses" value={stats.subjects} icon={BookOpen} primaryColor="#2baec1" secondaryColor="#2e406a" />
+                        <StatCard3D title="Scheduled Exams" value={stats.activeGrads} icon={Trophy} primaryColor="#2baec1" secondaryColor="#2e406a" />
                     </div>
-                </CardContent>
-            </Card>
 
-            {/* Activity & Logins Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 border border-slate-200 shadow-xl bg-white overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] via-[#2e406a] to-[#2baec1]"></div>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3 text-slate-900">
-                            <div className="p-2 rounded-xl gradient-primary shadow-lg">
-                                <TrendingUp className="h-5 w-5 text-white" />
+                    <Card className="relative border border-slate-200 shadow-lg bg-white overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2e406a] to-[#2baec1]" />
+                        <CardHeader>
+                            <CardTitle className="text-lg font-bold text-slate-900">Administration</CardTitle>
+                            <CardDescription>
+                                Timetable, courses, structure, and reporting — day-to-day teaching tasks use lecturer/student menus.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                {[
+                                    { to: '/timetable', label: 'Timetable', icon: CalendarRange },
+                                    { to: '/subjects', label: 'Subjects', icon: BookOpen },
+                                    { to: '/events', label: 'Events', icon: Calendar },
+                                    { to: '/admin/departments', label: 'Departments', icon: Building2 },
+                                    { to: '/admin/batches', label: 'Batches', icon: Layers },
+                                    { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
+                                    { to: '/admin/users', label: 'Users', icon: Settings },
+                                    { to: '/analytics', label: 'Reports', icon: BarChart3 },
+                                    { to: '/admin/system', label: 'System', icon: Shield },
+                                ].map(({ to, label, icon: Icon }) => (
+                                    <Link
+                                        key={to}
+                                        to={to}
+                                        className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-center transition-all hover:border-[#2baec1]/40 hover:bg-white hover:shadow-md"
+                                    >
+                                        <Icon className="mb-2 h-6 w-6 text-[#2baec1]" />
+                                        <span className="text-xs font-semibold text-slate-800">{label}</span>
+                                    </Link>
+                                ))}
                             </div>
-                            <span className="text-lg font-bold">Campus Activity</span>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
-                            {logs.length > 0 ? logs.map((log: any) => (
-                                <div key={log.id} className="group flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-[#2baec1]/30 transition-all duration-300">
-                                    <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
-                                        {log.action.slice(0, 3)}
+                        </CardContent>
+                    </Card>
+
+                    {/* Activity & Logins Section */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <Card className="lg:col-span-2 border border-slate-200 shadow-xl bg-white overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] via-[#2e406a] to-[#2baec1]"></div>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3 text-slate-900">
+                                    <div className="p-2 rounded-xl gradient-primary shadow-lg">
+                                        <TrendingUp className="h-5 w-5 text-white" />
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-semibold text-slate-900">{log.action}</p>
-                                        <p className="text-xs text-slate-500">
-                                            <span className="font-medium text-[#2baec1]">{log.user_id?.slice(0, 8) || 'Unknown'}</span> • {log.entity_type} • {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </p>
+                                    <span className="text-lg font-bold">Campus Activity</span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-3">
+                                    {logs.length > 0 ? logs.map((log: any) => (
+                                        <div key={log.id} className="group flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-[#2baec1]/30 transition-all duration-300">
+                                            <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                                                {log.action.slice(0, 3)}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-semibold text-slate-900">{log.action}</p>
+                                                <p className="text-xs text-slate-500">
+                                                    <span className="font-medium text-[#2baec1]">{log.user_id?.slice(0, 8) || 'Unknown'}</span> • {log.entity_type} • {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <p className="text-center text-slate-500 py-8">No recent activity found.</p>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border border-[#2baec1]/30 shadow-xl bg-gradient-to-br from-[#2baec1]/5 to-white overflow-hidden relative">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] to-[#2baec1]/60"></div>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3 text-slate-900">
+                                    <div className="p-2 rounded-xl gradient-secondary shadow-lg">
+                                        <LogIn className="h-5 w-5 text-white" />
                                     </div>
-                                </div>
-                            )) : (
-                                <p className="text-center text-slate-500 py-8">No recent activity found.</p>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border border-[#2baec1]/30 shadow-xl bg-gradient-to-br from-[#2baec1]/5 to-white overflow-hidden relative">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] to-[#2baec1]/60"></div>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3 text-slate-900">
-                            <div className="p-2 rounded-xl gradient-secondary shadow-lg">
-                                <LogIn className="h-5 w-5 text-white" />
-                            </div>
-                            <span className="text-lg font-bold">Recent Logins</span>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {recentLogins.length > 0 ? recentLogins.map((login: any) => (
-                            <div key={login.id} className="group flex items-center gap-3 p-3 rounded-xl bg-[#2baec1]/5 border border-[#2baec1]/20 hover:bg-[#2baec1]/10 hover:border-[#2baec1]/40 transition-all duration-300">
-                                <div className="h-10 w-10 rounded-xl gradient-secondary flex items-center justify-center text-white shadow-lg">
-                                    <LogIn className="h-5 w-5" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-slate-900 truncate">{login.user_id?.slice(0, 12) || 'Unknown'} • {login.entity_type}</p>
-                                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {new Date(login.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(login.created_at).toLocaleDateString()}
-                                    </p>
-                                </div>
-                            </div>
-                        )) : (
-                            <p className="text-center text-slate-500 py-8">No recent logins found.</p>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Campus Stats Section */}
-            <Card className="border border-slate-200 shadow-xl bg-white overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] via-[#2e406a] to-[#2baec1]"></div>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-3 text-slate-900">
-                        <div className="p-2 rounded-xl gradient-primary shadow-lg">
-                            <Award className="h-5 w-5 text-white" />
-                        </div>
-                        <span className="text-lg font-bold">Campus Statistics</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <CampusStatItem label="Total Students" value={stats.users} icon={Users} color="#2baec1" />
-                        <CampusStatItem label="Departments" value={stats.depts} icon={Building2} color="#2e406a" />
-                        <CampusStatItem label="Active Subjects" value={stats.subjects} icon={BookOpen} color="#2baec1" />
-                        <CampusStatItem label="Exam Sessions" value={stats.activeGrads} icon={Trophy} color="#2baec1" />
+                                    <span className="text-lg font-bold">Recent Logins</span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {recentLogins.length > 0 ? recentLogins.map((login: any) => (
+                                    <div key={login.id} className="group flex items-center gap-3 p-3 rounded-xl bg-[#2baec1]/5 border border-[#2baec1]/20 hover:bg-[#2baec1]/10 hover:border-[#2baec1]/40 transition-all duration-300">
+                                        <div className="h-10 w-10 rounded-xl gradient-secondary flex items-center justify-center text-white shadow-lg">
+                                            <LogIn className="h-5 w-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-slate-900 truncate">{login.user_id?.slice(0, 12) || 'Unknown'} • {login.entity_type}</p>
+                                            <p className="text-xs text-slate-500 flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {new Date(login.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(login.created_at).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <p className="text-center text-slate-500 py-8">No recent logins found.</p>
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+
+                    {/* Campus Stats Section */}
+                    <Card className="border border-slate-200 shadow-xl bg-white overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2baec1] via-[#2e406a] to-[#2baec1]"></div>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3 text-slate-900">
+                                <div className="p-2 rounded-xl gradient-primary shadow-lg">
+                                    <Award className="h-5 w-5 text-white" />
+                                </div>
+                                <span className="text-lg font-bold">Campus Statistics</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <CampusStatItem label="Total Students" value={stats.users} icon={Users} color="#2baec1" />
+                                <CampusStatItem label="Departments" value={stats.depts} icon={Building2} color="#2e406a" />
+                                <CampusStatItem label="Active Subjects" value={stats.subjects} icon={BookOpen} color="#2baec1" />
+                                <CampusStatItem label="Exam Sessions" value={stats.activeGrads} icon={Trophy} color="#2baec1" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </AdminPageStack>
+        </AdminPageChrome>
     );
 };
 
