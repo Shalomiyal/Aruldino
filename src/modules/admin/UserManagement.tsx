@@ -19,6 +19,7 @@ import type { AppRole } from '@/types';
 const UserManagement = () => {
     const [users, setUsers] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
+    const [batchesList, setBatchesList] = useState<{ id: string; name: string; academic_year: string }[]>([]);
     const [subjects, setSubjects] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState<'all' | AppRole>('all');
@@ -50,6 +51,10 @@ const UserManagement = () => {
             const { data: profiles, error: pError } = await (supabase.from('profiles').select('id, user_id, full_name, email, avatar_url, is_active, created_at, updated_at, department_id, batch, status').order('full_name') as any);
             const { data: roles, error: rError } = await (supabase.from('user_roles').select('id, user_id, role') as any);
             const { data: depts, error: dError } = await (supabase.from('departments' as any).select('*') as any);
+            const { data: batchRows } = await (supabase
+                .from('batches' as any)
+                .select('id, name, academic_year')
+                .order('name') as any);
             const { data: subs, error: sError } = await (supabase.from('subjects').select('id, name, code, lecturer_id') as any);
             const { data: enrollRows, error: eError } = await (supabase
                 .from('enrollments' as any)
@@ -58,6 +63,7 @@ const UserManagement = () => {
             if (pError || rError || dError || sError || eError) throw pError || rError || dError || sError || eError;
 
             setDepartments(depts || []);
+            setBatchesList((batchRows || []) as { id: string; name: string; academic_year: string }[]);
             setSubjects(subs || []);
 
             const enrolledByStudent = new Map<string, { name: string; code: string }[]>();
@@ -97,23 +103,30 @@ const UserManagement = () => {
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (form.role === 'student' && !form.batch.trim()) {
+            toast({ title: 'Batch required', description: 'Select a batch for student accounts.', variant: 'destructive' });
+            return;
+        }
         setIsAddingUser(true);
         try {
-            const { error } = await supabase.auth.signUp({
-                email: form.email,
-                password: form.password,
-                options: {
-                    data: {
-                        full_name: form.name,
-                        role: form.role,
-                        department_id: form.deptId !== 'none' ? form.deptId : null,
-                        batch: form.batch,
-                        status: form.status
-                    }
-                }
+            // Use Edge Function + Admin API so the new user session is NOT created in this browser
+            // (signUp() would log you in as the new account and kick the admin out).
+            const { data, error } = await supabase.functions.invoke('create-academy-user', {
+                body: {
+                    email: form.email,
+                    password: form.password,
+                    full_name: form.name,
+                    role: form.role,
+                    department_id: form.deptId !== 'none' ? form.deptId : null,
+                    batch: form.batch.trim() || null,
+                    status: form.status,
+                },
             });
 
-            if (error) throw error;
+            if (error) throw new Error(error.message);
+            if (data && typeof data === 'object' && data !== null && 'error' in data) {
+                throw new Error(String((data as { error: string }).error));
+            }
 
             toast({ title: 'User Created', description: `Account for ${form.name} is ready.` });
             setDialogOpen(false);
@@ -232,7 +245,12 @@ const UserManagement = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label>Role</Label>
-                                            <Select value={form.role} onValueChange={(v: any) => setForm({ ...form, role: v })}>
+                                            <Select
+                                                value={form.role}
+                                                onValueChange={(v: AppRole) =>
+                                                    setForm({ ...form, role: v, batch: v === 'student' ? form.batch : '' })
+                                                }
+                                            >
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="student">Student</SelectItem>
@@ -254,8 +272,43 @@ const UserManagement = () => {
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label>Batch (Students)</Label>
-                                            <Input placeholder="e.g. 2024" value={form.batch} onChange={e => setForm({ ...form, batch: e.target.value })} />
+                                            <Label>Batch {form.role === 'student' ? '(required)' : ''}</Label>
+                                            {form.role === 'student' ? (
+                                                <>
+                                                    <Select
+                                                        value={form.batch || 'none'}
+                                                        onValueChange={(v) => setForm({ ...form, batch: v === 'none' ? '' : v })}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a batch" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Select a batch…</SelectItem>
+                                                            {batchesList.map((b) => (
+                                                                <SelectItem key={b.id} value={b.name}>
+                                                                    {b.name} ({b.academic_year})
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    {batchesList.length === 0 && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            No batches found. Add batches under{' '}
+                                                            <Link to="/admin/batches" className="font-medium text-primary underline">
+                                                                Manage Batches
+                                                            </Link>
+                                                            .
+                                                        </p>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <Input
+                                                    className="bg-muted/40"
+                                                    placeholder="Not used for this role"
+                                                    value=""
+                                                    disabled
+                                                />
+                                            )}
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Status</Label>
@@ -447,13 +500,43 @@ const UserManagement = () => {
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Batch</Label>
-                                            <Input value={editUser.batch || ''} onChange={e => setEditUser({ ...editUser, batch: e.target.value })} />
+                                            {editUser.role === 'student' ? (
+                                                <Select
+                                                    value={editUser.batch || 'none'}
+                                                    onValueChange={(v) =>
+                                                        setEditUser({ ...editUser, batch: v === 'none' ? '' : v })
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a batch" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">None</SelectItem>
+                                                        {batchesList.map((b) => (
+                                                            <SelectItem key={b.id} value={b.name}>
+                                                                {b.name} ({b.academic_year})
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <Input className="bg-muted/40" value="" placeholder="—" disabled />
+                                            )}
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label>Role</Label>
-                                            <Select value={editUser.role} onValueChange={v => setEditUser({ ...editUser, role: v })}>
+                                            <Select
+                                                value={editUser.role}
+                                                onValueChange={(v: AppRole) =>
+                                                    setEditUser({
+                                                        ...editUser,
+                                                        role: v,
+                                                        batch: v === 'student' ? editUser.batch : '',
+                                                    })
+                                                }
+                                            >
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="student">Student</SelectItem>

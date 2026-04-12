@@ -75,7 +75,6 @@ const App = () => (
                 <Route path="/events" element={<ProtectedRoute allowedRoles={['admin', 'lecturer', 'student']}><Events /></ProtectedRoute>} />
 
                 {/* Academic Capabilities */}
-                <Route path="/analytics" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="view:reports"><Analytics /></ProtectedRoute>} />
 
                 {/* Admin Control */}
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin', 'lecturer']} requiredPermission="manage:users"><UserManagement /></ProtectedRoute>} />

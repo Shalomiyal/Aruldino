@@ -94,7 +94,7 @@ const FacultyAssignment = () => {
     );
 
     const lecturerSubjects = subjects.filter(s => s.lecturer_id === selectedLecturer?.user_id);
-    const availableSubjects = subjects.filter(s => !s.lecturer_id || s.lecturer_id !== selectedLecturer?.user_id);
+    const availableSubjects = subjects.filter(s => !s.lecturer_id);
 
     return (
         <DashboardLayout>
@@ -216,7 +216,6 @@ const FacultyAssignment = () => {
                                                     <div>
                                                         <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">{s.code}</p>
                                                         <p className="text-sm font-bold">{s.name}</p>
-                                                        {s.lecturer_id && <p className="text-[9px] text-warning flex items-center gap-1 mt-0.5"><CheckCircle2 className="h-2 w-2" /> Note: Currently assigned to another faculty</p>}
                                                     </div>
                                                     <Button
                                                         variant="outline"

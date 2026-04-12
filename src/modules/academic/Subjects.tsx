@@ -181,6 +181,25 @@ const Subjects = () => {
         }
 
         try {
+            // Check if subject already has a lecturer assigned
+            if (form.lecturerId !== 'unassigned' && editingSubject?.lecturer_id) {
+                const { data: existing } = await supabase
+                    .from('subjects')
+                    .select('lecturer_id, profiles(full_name)')
+                    .eq('id', editingSubject.id)
+                    .single();
+                
+                if (existing?.lecturer_id && existing.lecturer_id !== form.lecturerId) {
+                    toast({ 
+                        title: 'Subject Already Assigned', 
+                        description: `This subject is already assigned to ${existing.profiles?.full_name || 'another lecturer'}. Please unassign first or select a different subject.`, 
+                        variant: 'destructive' 
+                    });
+                    setIsSaving(false);
+                    return;
+                }
+            }
+
             const data = {
                 name: form.name,
                 code: form.code,
@@ -353,7 +372,25 @@ const Subjects = () => {
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Assign Lecturer</Label>
-                                        <Select value={form.lecturerId} onValueChange={v => setForm({ ...form, lecturerId: v })}>
+                                        <Select value={form.lecturerId} onValueChange={async (v) => {
+                                            if (v !== 'unassigned' && editingSubject?.lecturer_id && editingSubject.lecturer_id !== v) {
+                                                const { data: existing } = await supabase
+                                                    .from('subjects')
+                                                    .select('lecturer_id, profiles(full_name)')
+                                                    .eq('id', editingSubject.id)
+                                                    .single();
+                                                
+                                                if (existing?.lecturer_id) {
+                                                    toast({ 
+                                                        title: 'Cannot Assign', 
+                                                        description: `This subject is already assigned to ${existing.profiles?.full_name || 'another lecturer'}. Please unassign first.`, 
+                                                        variant: 'destructive' 
+                                                    });
+                                                    return;
+                                                }
+                                            }
+                                            setForm({ ...form, lecturerId: v });
+                                        }}>
                                             <SelectTrigger><SelectValue placeholder="Select a lecturer" /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="unassigned">Unassigned</SelectItem>
