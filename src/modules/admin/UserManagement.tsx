@@ -8,13 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, UserPlus, Shield, Loader2, Edit2, Trash2, Users } from 'lucide-react';
+import { Search, UserPlus, Shield, Loader2, Edit2, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { AppRole } from '@/types';
-import { AdminPageHero, AdminPageStack, AdminBackToDashboard } from '@/components/admin';
 
 const UserManagement = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -176,20 +175,18 @@ const UserManagement = () => {
 
     return (
         <DashboardLayout>
-            <AdminPageHero 
-                title={role === 'admin' ? 'User Management' : 'My Students'}
-                description={role === 'admin' ? 'Admin-only portal for account control' : 'View students enrolled in your subjects'}
-                icon={<Users className="h-5 w-5 text-white" />}
-            />
-            <AdminPageStack>
-                <AdminBackToDashboard />
-                <div className="space-y-6 animate-fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        {role === 'admin' && (
-                            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button className="gradient-primary"><UserPlus className="mr-2 h-4 w-4" /> Add User</Button>
-                                </DialogTrigger>
+            <div className="space-y-6 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold font-heading">{role === 'admin' ? 'User Management' : 'My Students'}</h1>
+                        <p className="text-muted-foreground">{role === 'admin' ? 'Admin-only portal for acount control' : 'View students enrolled in your subjects'}</p>
+                    </div>
+
+                    {role === 'admin' && (
+                        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="gradient-primary"><UserPlus className="mr-2 h-4 w-4" /> Add User</Button>
+                            </DialogTrigger>
                             <DialogContent className="sm:max-w-[450px]">
                                 <DialogHeader>
                                     <DialogTitle>New Academy Member</DialogTitle>
@@ -445,7 +442,6 @@ const UserManagement = () => {
                     </DialogContent>
                 </Dialog>
             </div>
-            </AdminPageStack>
         </DashboardLayout>
     );
 };

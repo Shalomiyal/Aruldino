@@ -1,7 +1,6 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { AdminPageChrome, AdminPageHero, AdminPageStack, AdminBackToDashboard } from '@/components/admin';
 import {
   BarChart3, TrendingUp, Users, FileText,
   PieChart as PieChartIcon, LineChart as LineChartIcon,
@@ -113,69 +112,56 @@ const Analytics = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <AdminPageHero 
-          title="Reports & Analytics"
-          description="Real-time performance metrics and engagement monitoring"
-          icon={<BarChart3 className="h-5 w-5 text-white" />}
-        />
-        <AdminPageStack>
-          <AdminBackToDashboard />
-          <Card className="border border-slate-200 shadow-lg bg-white">
-            <CardContent className="flex items-center justify-center h-64">
-              <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
-            </CardContent>
-          </Card>
-        </AdminPageStack>
+        <div className="h-[60vh] flex items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+        </div>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <AdminPageHero 
-        title="Reports & Analytics"
-        description="Real-time performance metrics and engagement monitoring"
-        icon={<BarChart3 className="h-5 w-5 text-white" />}
-      />
-      <AdminPageStack>
-        <AdminBackToDashboard />
-        <div className="space-y-6 animate-fade-in pb-10">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <StatCard
-              title="Student Body"
-              value={summary.totalStudents.toString()}
-              icon={Users}
-              className="bg-primary/5 border-primary/10"
-            />
-            <StatCard
-              title="Avg Attendance"
-              value={`${summary.avgAttendance}%`}
-              icon={BarChart3}
-              className="bg-success/5 border-success/10"
-            />
-            <StatCard
-              title="Active Courses"
-              value={summary.activeSubjects.toString()}
-              icon={TrendingUp}
-              className="bg-info/5 border-info/10"
-            />
-          </div>
-
-          <Suspense fallback={
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          }>
-            <ChartComponents
-              performanceData={performanceData}
-              attendanceStats={attendanceStats}
-              workloadData={workloadData}
-              summary={summary}
-              role={role || ''}
-            />
-          </Suspense>
+      <div className="space-y-6 animate-fade-in pb-10">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold font-heading tracking-tight">Institutional Intelligence</h1>
+          <p className="text-muted-foreground">Real-time performance metrics and engagement monitoring.</p>
         </div>
-      </AdminPageStack>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            title="Student Body"
+            value={summary.totalStudents.toString()}
+            icon={Users}
+            className="bg-primary/5 border-primary/10"
+          />
+          <StatCard
+            title="Avg Attendance"
+            value={`${summary.avgAttendance}%`}
+            icon={BarChart3}
+            className="bg-success/5 border-success/10"
+          />
+          <StatCard
+            title="Active Courses"
+            value={summary.activeSubjects.toString()}
+            icon={TrendingUp}
+            className="bg-info/5 border-info/10"
+          />
+        </div>
+
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        }>
+          <ChartComponents
+            performanceData={performanceData}
+            attendanceStats={attendanceStats}
+            workloadData={workloadData}
+            summary={summary}
+            role={role || ''}
+          />
+        </Suspense>
+      </div>
     </DashboardLayout>
   );
 };

@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AdminPageHero, AdminPageStack, AdminBackToDashboard } from '@/components/admin';
 import {
     Send, Megaphone, MessageSquare, Bell, Search,
     MoreVertical, User, Terminal, Loader2, Plus,
@@ -149,14 +148,9 @@ const Communication = () => {
             return;
         }
 
-        // Validate content - min 10 characters
-        if (annForm.content.length < 10) {
-            toast({ title: 'Invalid content', description: 'Content must be at least 10 characters.', variant: 'destructive' });
-            setIsActionLoading(false);
-            return;
-        }
-        if (annForm.title.length < 10) {
-            toast({ title: 'Invalid title', description: 'Title must be at least 10 characters.', variant: 'destructive' });
+        // Validate content - min 15 characters
+        if (annForm.content.length < 15) {
+            toast({ title: 'Invalid content', description: 'Content must be at least 15 characters.', variant: 'destructive' });
             setIsActionLoading(false);
             return;
         }
@@ -215,16 +209,14 @@ const Communication = () => {
 
     return (
         <DashboardLayout>
-            <AdminPageHero 
-                title="Announcements & Messages"
-                description="Broadcast notices and collaborate in real-time"
-                icon={<Megaphone className="h-5 w-5 text-white" />}
-            />
-            <AdminPageStack>
-                <AdminBackToDashboard />
-                <div className="h-[calc(100vh-140px)] flex flex-col space-y-4 animate-fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        {role === 'admin' && (
+            <div className="h-[calc(100vh-140px)] flex flex-col space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold font-heading">Academy Commons</h1>
+                        <p className="text-muted-foreground text-sm tracking-tight">Broadcast notices and collaborate in real-time.</p>
+                    </div>
+
+                    {role === 'admin' && (
                         <div className="flex gap-2">
                             <Dialog open={isAnnOpen} onOpenChange={setIsAnnOpen}>
                                 <DialogTrigger asChild>
@@ -238,10 +230,9 @@ const Communication = () => {
                                         <DialogDescription>Your message will be broadcasted to the selected audience.</DialogDescription>
                                     </DialogHeader>
                                     <form onSubmit={handlePostAnnouncement} className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label>Notice Title <span className="text-[10px] text-muted-foreground">(min 10 chars)</span></Label>
+<div className="space-y-2">
+                                            <Label>Notice Title <span className="text-[10px] text-muted-foreground">(10-80 chars)</span></Label>
                                             <Input
-                                                className="rounded-xl border-gray-200"
                                                 placeholder="e.g. Campus Holiday Notice"
                                                 value={annForm.title}
                                                 onChange={e => setAnnForm({ ...annForm, title: e.target.value.slice(0, 80) })}
@@ -250,9 +241,19 @@ const Communication = () => {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Content <span className="text-[10px] text-muted-foreground">(min 10 chars)</span></Label>
+                                            <Label>Content <span className="text-[10px] text-muted-foreground">(min 15 chars)</span></Label>
                                             <Input
-                                                className="min-h-[100px] rounded-xl border-gray-200"
+                                                className="min-h-[100px]"
+                                                placeholder="Write your announcement here..."
+                                                value={annForm.content}
+                                                onChange={e => setAnnForm({ ...annForm, content: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Content</Label>
+                                            <Input
+                                                className="min-h-[100px]"
                                                 placeholder="Write your announcement here..."
                                                 value={annForm.content}
                                                 onChange={e => setAnnForm({ ...annForm, content: e.target.value })}
@@ -440,7 +441,6 @@ const Communication = () => {
                     </TabsContent>
                 </Tabs>
             </div>
-            </AdminPageStack>
         </DashboardLayout>
     );
 };
