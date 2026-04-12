@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -8,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, UserPlus, Shield, Loader2, Edit2, Trash2 } from 'lucide-react';
+import { Search, UserPlus, Loader2, Edit2, Trash2, Filter } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +21,7 @@ const UserManagement = () => {
     const [departments, setDepartments] = useState<any[]>([]);
     const [subjects, setSubjects] = useState<any[]>([]);
     const [search, setSearch] = useState('');
+    const [roleFilter, setRoleFilter] = useState<'all' | AppRole>('all');
     const [loading, setLoading] = useState(true);
     const [isAddingUser, setIsAddingUser] = useState(false);
 
@@ -49,11 +51,24 @@ const UserManagement = () => {
             const { data: roles, error: rError } = await (supabase.from('user_roles').select('id, user_id, role') as any);
             const { data: depts, error: dError } = await (supabase.from('departments' as any).select('*') as any);
             const { data: subs, error: sError } = await (supabase.from('subjects').select('id, name, code, lecturer_id') as any);
+            const { data: enrollRows, error: eError } = await (supabase
+                .from('enrollments' as any)
+                .select('student_id, subjects(name, code)') as any);
 
-            if (pError || rError || dError || sError) throw pError || rError || dError || sError;
+            if (pError || rError || dError || sError || eError) throw pError || rError || dError || sError || eError;
 
             setDepartments(depts || []);
             setSubjects(subs || []);
+
+            const enrolledByStudent = new Map<string, { name: string; code: string }[]>();
+            (enrollRows as any[])?.forEach((row: any) => {
+                const sid = row.student_id as string;
+                const sub = row.subjects;
+                if (!sub) return;
+                const list = enrolledByStudent.get(sid) ?? [];
+                list.push({ name: sub.name, code: sub.code });
+                enrolledByStudent.set(sid, list);
+            });
 
             let combined = profiles.map((p: any) => {
                 const userRole = roles?.find((r: any) => r.user_id === p.user_id)?.role || 'student';
@@ -61,7 +76,8 @@ const UserManagement = () => {
                     ...p,
                     role: userRole,
                     dept_name: depts?.find((d: any) => d.id === p.department_id)?.name || 'N/A',
-                    assigned_subjects: subs?.filter((s: any) => s.lecturer_id === p.user_id) || []
+                    assigned_subjects: subs?.filter((s: any) => s.lecturer_id === p.user_id) || [],
+                    enrolled_subjects: enrolledByStudent.get(p.user_id) ?? [],
                 };
             });
 
@@ -171,7 +187,13 @@ const UserManagement = () => {
         }
     };
 
-    const filtered = users.filter(u => u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
+    const filtered = users.filter((u) => {
+        const q = search.toLowerCase();
+        const matchesSearch =
+            !q || u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+        const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+        return matchesSearch && matchesRole;
+    });
 
     return (
         <DashboardLayout>
@@ -179,7 +201,7 @@ const UserManagement = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold font-heading">{role === 'admin' ? 'User Management' : 'My Students'}</h1>
-                        <p className="text-muted-foreground">{role === 'admin' ? 'Admin-only portal for acount control' : 'View students enrolled in your subjects'}</p>
+                        <p className="text-muted-foreground">{role === 'admin' ? 'Admin-only portal for account control' : 'View students enrolled in your subjects'}</p>
                     </div>
 
                     {role === 'admin' && (
@@ -257,9 +279,27 @@ const UserManagement = () => {
                     )}
                 </div>
 
-                <div className="relative max-w-sm">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Search name or email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                    <div className="relative max-w-sm flex-1">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input placeholder="Search name or email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+                    </div>
+                    <div className="w-full sm:w-52">
+                        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as typeof roleFilter)}>
+                            <SelectTrigger className="bg-card">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <SelectValue placeholder="Role" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All roles</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="lecturer">Lecturer</SelectItem>
+                                <SelectItem value="student">Student</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <Card className="shadow-card overflow-hidden">
@@ -304,16 +344,48 @@ const UserManagement = () => {
                                         <TableCell className="text-xs font-medium text-muted-foreground">{u.dept_name}</TableCell>
                                         <TableCell className="text-xs font-mono">{u.batch || '—'}</TableCell>
                                         <TableCell>
-                                            <div className="flex flex-wrap gap-1 max-w-[200px]">
-                                                {u.role === 'lecturer' ? (
-                                                    u.assigned_subjects?.length > 0 ? (
-                                                        u.assigned_subjects.map((s: any) => (
-                                                            <Badge key={s.id} variant="secondary" className="text-[8px] px-1 h-4 bg-primary/5 text-primary border-none">
-                                                                {s.code}
-                                                            </Badge>
-                                                        ))
-                                                    ) : <span className="text-[10px] text-muted-foreground">Unassigned</span>
-                                                ) : <span className="text-[10px] text-muted-foreground italic">N/A</span>}
+                                            <div className="flex flex-col gap-1 max-w-[220px]">
+                                                {u.role === 'lecturer' && (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {u.assigned_subjects?.length > 0 ? (
+                                                            u.assigned_subjects.map((s: any) => (
+                                                                <Badge key={s.id} variant="secondary" className="text-[8px] px-1 h-4 bg-primary/5 text-primary border-none">
+                                                                    {s.code}
+                                                                </Badge>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-[10px] text-muted-foreground">Unassigned</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {u.role === 'admin' && (
+                                                    <span className="text-[10px] text-muted-foreground">No subject assignment (admin)</span>
+                                                )}
+                                                {u.role === 'student' && (
+                                                    <>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {u.enrolled_subjects?.length > 0 ? (
+                                                                u.enrolled_subjects.map((s: { name: string; code: string }, idx: number) => (
+                                                                    <Badge
+                                                                        key={`${s.code}-${idx}`}
+                                                                        variant="secondary"
+                                                                        className="text-[8px] px-1 h-4 bg-primary/5 text-primary border-none"
+                                                                    >
+                                                                        {s.code}
+                                                                    </Badge>
+                                                                ))
+                                                            ) : (
+                                                                <span className="text-[10px] text-muted-foreground">No courses enrolled</span>
+                                                            )}
+                                                        </div>
+                                                        <Link
+                                                            to="/admin/enrollments"
+                                                            className="text-[10px] font-medium text-primary hover:underline w-fit"
+                                                        >
+                                                            View / manage on Enrollments
+                                                        </Link>
+                                                    </>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell>

@@ -20,15 +20,31 @@ const FacultyAssignment = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // 1. Fetch Lecturers (Joining with user_roles because role is not in profiles)
-            const { data: profs } = await (supabase.from('profiles') as any)
-                .select('*, user_roles!inner(role)')
-                .eq('user_roles.role', 'lecturer')
-                .eq('status', 'active');
+            // 1. Lecturers: user_roles → profiles (no direct FK for a profiles↔user_roles embed)
+            const { data: lecturerRoles, error: lrErr } = await supabase
+                .from('user_roles')
+                .select('user_id')
+                .eq('role', 'lecturer');
+            if (lrErr) throw lrErr;
+
+            const lecturerIds = [...new Set((lecturerRoles ?? []).map((r) => r.user_id))];
+
+            let profs: any[] = [];
+            if (lecturerIds.length > 0) {
+                const { data: profRows, error: pErr } = await supabase
+                    .from('profiles')
+                    .select('id, user_id, full_name, email, is_active')
+                    .in('user_id', lecturerIds)
+                    .eq('is_active', true)
+                    .order('full_name', { ascending: true });
+                if (pErr) throw pErr;
+                profs = profRows ?? [];
+            }
 
             // 2. Fetch Subjects
-            const { data: subjs } = await (supabase.from('subjects') as any)
+            const { data: subjs, error: subErr } = await (supabase.from('subjects') as any)
                 .select('*, departments(name)');
+            if (subErr) throw subErr;
 
             setLecturers(profs || []);
             setSubjects(subjs || []);
