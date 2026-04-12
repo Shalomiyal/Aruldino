@@ -1,4 +1,6 @@
 import { lazy } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { BarChart3, TrendingUp, Briefcase, Users, FileText } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend
@@ -15,6 +17,22 @@ interface AnalyticsChartsProps {
   };
   role: string;
 }
+
+const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: string | number; icon: React.ElementType; color: string }) => (
+  <Card className="bg-white">
+    <CardContent className="pt-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-[#6B7280]">{title}</p>
+          <p className="text-2xl font-bold text-[#1B2B4B] mt-1">{value}</p>
+        </div>
+        <div className="h-12 w-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
+          <Icon className="h-6 w-6" style={{ color }} />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
 
 const AnalyticsCharts = ({ performanceData, attendanceStats, workloadData, summary, role }: AnalyticsChartsProps) => {
   const COLORS = ['#2baec1', '#2e406a', '#2baec1AA', '#2e406aAA'];
